@@ -20,9 +20,12 @@ const isSupabaseConfigured = Boolean(
   supabaseServiceRoleKey.length > 20
 );
 
-if (!isSupabaseConfigured) {
-  console.log('Supabase not configured - running in demo mode');
-}
+console.log('Supabase configuration check:', {
+  url: supabaseUrl,
+  anonKeyLength: supabaseAnonKey?.length,
+  serviceKeyLength: supabaseServiceRoleKey?.length,
+  isConfigured: isSupabaseConfigured
+});
 
 // Create Supabase client (with fallback for demo mode)
 export const supabase = isSupabaseConfigured 
@@ -47,12 +50,8 @@ export const supabaseAdmin = isSupabaseConfigured
 // Export demo mode status
 export const isDemoMode = !isSupabaseConfigured;
 
-// Test database connection on initialization (only if configured)
-if (supabase) {
-  console.log('Supabase client ready');
-} else {
-  console.log('Running in demo mode - Supabase not configured');
-}
+console.log(`Application mode: ${isDemoMode ? 'DEMO' : 'PRODUCTION'}`);
+console.log(`Supabase client: ${supabase ? 'READY' : 'NOT AVAILABLE'}`);
 
 // Database types
 export interface Database {

@@ -62,13 +62,18 @@ export function Login() {
     setIsLoading(true);
     setError('');
 
-    const result = await login(email, password);
-    
-    if (!result.success) {
-      setError(result.message);
-    } else {
-      // Login successful, navigation will be handled by the auth context
-      console.log('Login successful');
+    try {
+      const result = await login(email, password);
+      
+      if (!result.success) {
+        setError(result.message);
+      } else {
+        // Login successful, navigation will be handled by the auth context
+        console.log('Login successful');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Login failed. Please try again.');
     }
     
     setIsLoading(false);

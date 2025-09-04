@@ -157,6 +157,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (email: string, password: string) => {
     try {
       console.log('Attempting login with:', email);
+      console.log('Demo mode status:', isDemoMode);
       const response = await authApi.login(email, password);
       console.log('Login response:', response);
       
@@ -164,15 +165,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const { user, token } = response.data;
         console.log('Setting user:', user);
         
-        // Check if this is first login (password hasn't been changed)
-        const isFirstLogin = user.passwordChangedAt && 
+        // Check if this is first login (password hasn't been changed) - only in production mode
+        const isFirstLogin = !isDemoMode && user.passwordChangedAt && 
           new Date(user.passwordChangedAt).getTime() === new Date(user.createdAt).getTime();
         
         setUser(user);
         localStorage.setItem('authToken', token);
         localStorage.setItem('userData', JSON.stringify(user));
         
-        // Show password change modal for first login
+        // Show password change modal for first login (only in production mode)
         if (isFirstLogin) {
           setShowPasswordChangeModal(true);
         }
