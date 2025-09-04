@@ -10,12 +10,8 @@ export function Unauthorized() {
   const { user } = useAuth();
 
   const handleGoBack = () => {
-    // Go back in history, but if there's no history, go to appropriate dashboard
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      handleGoHome();
-    }
+    // Navigate to login page
+    navigate('/login');
   };
 
   const handleGoHome = () => {
