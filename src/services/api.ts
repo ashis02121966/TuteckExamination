@@ -203,39 +203,11 @@ export const authApi = {
       }
 
       if (!authData.user) {
-        console.error('User profile fetch error:', userError);
-      if (isDemoMode) {
-        // Demo mode login
-        const demoUser = demoUsers.find(u => u.email === email && password === 'password123');
-        if (demoUser) {
-          return {
-            success: true,
-            message: 'Login successful',
-            data: {
-              user: demoUser,
-              token: 'demo-token-' + Date.now()
-            }
-          };
-        }
-        return { success: false, message: 'Invalid credentials' };
-      }
-
-      // Production mode - authenticate with Supabase Auth
-      const { data: authData, error: authError } = await supabase!.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (authError) {
-        return { success: false, message: authError.message };
-      }
-
-      if (!authData.user) {
         return { success: false, message: 'Authentication failed' };
       }
 
       // Get user profile from custom users table
-      const { data: userData, error: userError } = await supabase!
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .select(`
           *,
@@ -297,25 +269,18 @@ export const authApi = {
           return { success: false, message: error.message };
         }
       }
-    try {
-      if (isDemoMode) {
-        return { success: true, message: 'Logged out successfully' };
-      }
 
-      const { error } = await supabase!.auth.signOut();
-      if (error) {
-        console.error('Logout error:', error);
-      }
       return { success: true, message: 'Logged out successfully' };
     } catch (error) {
       console.error('Logout error:', error);
       return { success: false, message: 'Logout failed' };
     }
-        await delay(500);
-        return { success: true, message: 'Password changed successfully (demo mode)' };
-      }
+  },
+
+  async changePassword(newPassword: string): Promise<ApiResponse<void>> {
     try {
       if (isDemoMode) {
+        await delay(500);
         return { success: true, message: 'Password changed successfully (demo mode)' };
       }
 
@@ -330,8 +295,8 @@ export const authApi = {
       return { success: true, message: 'Password changed successfully' };
     } catch (error) {
       console.error('Password change error:', error);
-      return { success: false, message: 'Failed to change password' };
-    }
+      return {
+        success: false,
         message: error instanceof Error ? error.message : 'Failed to change password'
       };
     }
