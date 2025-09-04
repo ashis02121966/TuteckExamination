@@ -330,14 +330,12 @@ export const userApi = {
         };
       }
 
-      const { data, error } = await supabase!
+      const { data, error, count } = await supabase!
         .from('users')
         .select(`
           *,
           role:roles(*)
         `)
-        .order('created_at', { ascending: false });
-
       if (error) {
         return {
           success: false,
@@ -345,6 +343,8 @@ export const userApi = {
         };
       }
 
+      console.log('getUsers: Fetched', data?.length, 'users from database');
+      
       const users: User[] = (data || []).map(userData => ({
         id: userData.id,
         email: userData.email,
