@@ -4,7 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/UI/Button';
 import { Input } from '../components/UI/Input';
 import { DataInitializer } from '../services/dataInitializer';
-import { DataInitializer } from '../services/dataInitializer';
 import { FileText, AlertCircle, Users, Building, UserCheck, User } from 'lucide-react';
 import { isDemoMode } from '../lib/supabase';
 
