@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types';
 import { authApi } from '../services/api';
-import { supabase } from '../lib/supabase';
+import { supabase, isDemoMode } from '../lib/supabase';
 import { Modal } from '../components/UI/Modal';
 import { Button } from '../components/UI/Button';
 import { Input } from '../components/UI/Input';
