@@ -46,73 +46,56 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // First check if we have a Supabase session
       if (supabase) {
-        // Validate the current session by checking if the user is still valid
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
-        if (user && !userError) {
-          // We have a valid user, now get the session
+        try {
+          // Get the current session
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
           
-          if (session && !sessionError) {
-          // We have a valid Supabase session, fetch user details from database
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select(`
-              *,
-              role:roles(*)
-            `)
-            .eq('id', user.id)
-            .maybeSingle();
-          
-          if (userData && !userError) {
-            const user = {
-              id: userData.id,
-              name: userData.name,
-              email: userData.email,
-              role: userData.role,
-              jurisdiction: userData.jurisdiction,
-              isActive: userData.is_active,
-              createdAt: new Date(userData.created_at),
-              updatedAt: new Date(userData.updated_at)
-            };
+          if (session && session.user && !sessionError) {
+            // We have a valid Supabase session, fetch user details from database
+            const { data: userData, error: userDataError } = await supabase
+              .from('users')
+              .select(`
+                *,
+                role:roles(*)
+              `)
+              .eq('id', session.user.id)
+              .maybeSingle();
             
-            setUser(user);
-            setIsLoading(false);
-            return;
-          } else {
-            // User data fetch failed, clear authentication state
-            await logout();
-            setUser(null);
-            setIsLoading(false);
-            return;
+            if (userData && !userDataError) {
+              const user = {
+                id: userData.id,
+                name: userData.name,
+                email: userData.email,
+                role: userData.role,
+                jurisdiction: userData.jurisdiction,
+                isActive: userData.is_active,
+                createdAt: new Date(userData.created_at),
+                updatedAt: new Date(userData.updated_at)
+              };
+              
+              setUser(user);
+              setIsLoading(false);
+              return;
+            }
           }
-          } else {
-            // Session is invalid, clear authentication state
-            await logout();
-            setUser(null);
-            setIsLoading(false);
-            return;
+        } catch (authError) {
+          // Handle refresh token errors gracefully
+          console.info('Session validation failed, clearing auth state:', authError);
+          
+          // Clear the invalid session
+          try {
+            await supabase.auth.signOut();
+          } catch (signOutError) {
+            // Ignore sign out errors
           }
-        } else {
-          // User validation failed (invalid/expired refresh token), clear authentication state
-          await logout();
-          setUser(null);
-          setIsLoading(false);
-          return;
         }
       }
     } catch (error) {
       console.error('Auth initialization error:', error);
-      
-      // Clear authentication state on error
-      try {
-        await logout();
-      } catch (logoutError) {
-        // Ignore logout errors during cleanup
-      }
-      setUser(null);
     }
     
+    // Set user to null and stop loading
+    setUser(null);
     setIsLoading(false);
   }, []);
 
@@ -230,19 +213,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      await authApi.logout();
-    } catch (error) {
-      // Check if the error is related to missing/invalid session
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('Auth session missing!') || 
-          errorMessage.includes('session_not_found') ||
-          errorMessage.includes('Session from session_id claim in JWT does not exist')) {
-        // Session already invalid/missing - this is expected in some cases
-        console.info('Logout: Session was already invalid or missing');
-      } else {
-        // Log other logout errors normally
-        console.error('Logout error:', error);
+      // Clear Supabase session first
+      if (supabase) {
+        await supabase.auth.signOut();
       }
+      // Then call API logout
+      try {
+        await authApi.logout();
+      } catch (apiError) {
+        // API logout might fail if session is already invalid, which is fine
+        console.info('API logout failed (session may already be invalid):', apiError);
+      }
+    } catch (error) {
+      console.info('Logout error (may be expected if session already invalid):', error);
     } finally {
       setUser(null);
     }
