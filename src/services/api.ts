@@ -1818,22 +1818,11 @@ class ResultApi extends BaseApi {
         return { success: false, message: 'Database not configured', data: [] };
       }
 
-      // Fetch test results with user and survey data
+      const { data, error } = await supabase
       const { data, error } = await supabase
         .from('test_results')
-        .select(`
-          *,
-          user:users(
-            id,
-            name,
-            email,
-            jurisdiction,
-            zone,
-            region,
-            district,
-            role:roles(
-              id,
-              name,
+        .select('*')
+        .order('completed_at', { ascending: false });
               description,
               level
             )
@@ -1901,40 +1890,69 @@ class ResultApi extends BaseApi {
           createdAt: new Date(),
           updatedAt: new Date()
         } : undefined,
-        surveyId: result.survey_id,
-        survey: result.survey ? {
-          id: result.survey.id,
-          title: result.survey.title,
-          description: result.survey.description || '',
-          targetDate: new Date(),
-          duration: result.survey.duration,
-          totalQuestions: result.survey.total_questions,
-          passingScore: result.survey.passing_score,
-          maxAttempts: result.survey.max_attempts,
-          isActive: true,
-          sections: [],
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: ''
-        } : undefined,
-        sessionId: result.session_id,
-        score: result.score,
-        totalQuestions: result.total_questions,
-        correctAnswers: result.correct_answers,
-        isPassed: result.is_passed,
-        timeSpent: result.time_spent,
-        attemptNumber: result.attempt_number,
-        sectionScores: (result.section_scores || []).map((ss: any) => ({
-          sectionId: ss.section_id,
-          sectionTitle: ss.section_title,
-          score: ss.score,
-          totalQuestions: ss.total_questions,
-          correctAnswers: ss.correct_answers
-        })),
-        completedAt: new Date(result.completed_at),
-        certificateId: result.certificate_id,
-        grade: result.grade
-      }));
+      // Get unique user IDs and survey IDs
+      const userIds = [...new Set(data?.map(r => r.user_id).filter(Boolean))];
+      const surveyIds = [...new Set(data?.map(r => r.survey_id).filter(Boolean))];
+
+      // Fetch user data
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, name, email, role_id, roles(name)')
+        .in('id', userIds);
+
+      if (userError) throw userError;
+
+      // Fetch survey data
+      const { data: surveyData, error: surveyError } = await supabase
+        .from('surveys')
+        .select('id, title, max_attempts')
+        .in('id', surveyIds);
+
+      if (surveyError) throw surveyError;
+
+      // Create lookup maps
+      const userMap = new Map(userData?.map(u => [u.id, u]) || []);
+      const surveyMap = new Map(surveyData?.map(s => [s.id, s]) || []);
+
+      const transformedData = (data || []).map(result => {
+        const user = userMap.get(result.user_id);
+        const survey = surveyMap.get(result.survey_id);
+
+        return {
+          id: result.id,
+          userId: result.user_id,
+          user: user ? {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: { name: user.roles?.name || 'Unknown Role' }
+          } : {
+            id: result.user_id,
+            name: 'Unknown User',
+            email: 'unknown@email.com',
+            role: { name: 'Unknown Role' }
+          },
+          surveyId: result.survey_id,
+          survey: survey ? {
+            title: survey.title,
+            maxAttempts: survey.max_attempts
+          } : {
+            title: 'Unknown Survey',
+            maxAttempts: 3
+          },
+          sessionId: result.session_id,
+          score: result.score,
+          totalQuestions: result.total_questions,
+          correctAnswers: result.correct_answers,
+          isPassed: result.is_passed,
+          timeSpent: result.time_spent,
+          attemptNumber: result.attempt_number,
+          sectionScores: [],
+          completedAt: new Date(result.completed_at),
+          certificateId: result.certificate_id,
+          grade: result.grade
+        };
+      });
 
       return { success: true, data: results, message: 'Results fetched successfully' };
     } catch (error) {
