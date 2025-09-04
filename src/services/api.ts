@@ -1110,12 +1110,26 @@ export const dashboardApi = {
           }
         };
       }
+      // Get total users count
+      const { count: totalUsers, error: usersError } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
 
-      // Fetch real data from Supabase
-      const [usersResult, surveysResult, attemptsResult, resultsResult] = await Promise.all([
-        supabase!.from('users').select('id, role_id, roles(name)'),
-        supabase!.from('surveys').select('id, is_active'),
-        supabase!.from('test_sessions').select('id'),
+      if (usersError) throw usersError;
+
+      // Get total surveys count
+      const { count: totalSurveys, error: surveysError } = await supabase
+        .from('surveys')
+        .select('*', { count: 'exact', head: true });
+
+      if (surveysError) throw surveysError;
+
+      // Get total attempts count
+      const { count: totalAttempts, error: attemptsError } = await supabase
+        .from('test_results')
+        .select('*', { count: 'exact', head: true });
+
+      if (attemptsError) throw attemptsError;
         supabase!.from('test_results').select('id, score, is_passed')
       ]);
 
@@ -1642,9 +1656,6 @@ export const resultApi = {
         sessionId: resultData.session_id,
         score: resultData.score,
         totalQuestions: resultData.total_questions,
-        correctAnswers: resultData.correct_answers,
-        isPassed: resultData.is_passed,
-        timeSpent: resultData.time_spent,
         attemptNumber: resultData.attempt_number,
         sectionScores: [],
         completedAt: new Date(resultData.completed_at),
@@ -1710,9 +1721,9 @@ export const resultApi = {
       const averageScore = totalAttempts > 0 ? results!.reduce((sum, r) => sum + r.score, 0) / totalAttempts : 0;
       const averageTime = totalAttempts > 0 ? results!.reduce((sum, r) => sum + r.time_spent, 0) / totalAttempts / 60 : 0;
 
-      const analyticsData: AnalyticsData = {
-        overview: {
-          totalAttempts,
+          totalUsers: totalUsers || 0,
+          totalSurveys: totalSurveys || 0,
+          totalAttempts: totalAttempts || 0,
           passRate,
           averageScore,
           averageTime
