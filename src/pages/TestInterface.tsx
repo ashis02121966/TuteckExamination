@@ -307,13 +307,45 @@ export function TestInterface() {
   const loadQuestionsForSurvey = async (surveyId: string) => {
     try {
       setIsLoading(true);
-      const response = await testApi.getQuestionsForSurvey(surveyId);
       
-      if (!response.success || !response.data) {
-        throw new Error('Failed to load questions for this survey');
+      // First get all sections for this survey
+      const sectionsResponse = await surveyApi.getSurveySections(surveyId);
+      if (!sectionsResponse.success || !sectionsResponse.data) {
+        throw new Error('Failed to load survey sections');
       }
       
-      setQuestions(response.data);
+      const sections = sectionsResponse.data;
+      let allSelectedQuestions: any[] = [];
+      
+      // For each section, get all questions and randomly select based on questionsCount
+      for (const section of sections) {
+        const questionsResponse = await questionApi.getQuestions(section.id);
+        if (questionsResponse.success && questionsResponse.data) {
+          const sectionQuestions = questionsResponse.data;
+          const questionsToSelect = Math.min(section.questionsCount, sectionQuestions.length);
+          
+          // Randomly select questions from this section
+          const shuffled = [...sectionQuestions].sort(() => 0.5 - Math.random());
+          const selectedQuestions = shuffled.slice(0, questionsToSelect);
+          
+          // Add section info to questions for proper ordering
+          const questionsWithSection = selectedQuestions.map((q, index) => ({
+            ...q,
+            order: (section.order * 1000) + index // Section order * 1000 + question index
+          }));
+          
+          allSelectedQuestions = [...allSelectedQuestions, ...questionsWithSection];
+        }
+      }
+      
+      // Sort questions by section order and then by question order within section
+      allSelectedQuestions.sort((a, b) => (a.order || 0) - (b.order || 0));
+      
+      if (allSelectedQuestions.length === 0) {
+        throw new Error('No questions found for this survey');
+      }
+      
+      setQuestions(allSelectedQuestions);
       setIsLoading(false);
     } catch (error) {
       console.error('Error loading questions:', error);
