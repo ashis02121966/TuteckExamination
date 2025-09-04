@@ -1818,11 +1818,22 @@ class ResultApi extends BaseApi {
         return { success: false, message: 'Database not configured', data: [] };
       }
 
-      const { data, error } = await supabase
+      // Fetch test results with user and survey data
       const { data, error } = await supabase
         .from('test_results')
-        .select('*')
-        .order('completed_at', { ascending: false });
+        .select(`
+          *,
+          user:users(
+            id,
+            name,
+            email,
+            jurisdiction,
+            zone,
+            region,
+            district,
+            role:roles(
+              id,
+              name,
               description,
               level
             )
@@ -1859,102 +1870,6 @@ class ResultApi extends BaseApi {
       }));
 
       return { success: true, data: transformedData, message: 'Results fetched successfully' };
-
-      const results: TestResult[] = (data || []).map((result: any) => ({
-        id: result.id,
-        userId: result.user_id,
-        user: result.user ? {
-          id: result.user.id,
-          name: result.user.name,
-          email: result.user.email,
-          roleId: result.user.role?.id || '',
-          role: result.user.role ? {
-            id: result.user.role.id,
-            name: result.user.role.name,
-            description: result.user.role.description || '',
-            level: result.user.role.level,
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          } : {
-            id: '',
-            name: 'Unknown Role',
-            description: '',
-            level: 5,
-            isActive: false,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          },
-          jurisdiction: result.user.jurisdiction,
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        } : undefined,
-      // Get unique user IDs and survey IDs
-      const userIds = [...new Set(data?.map(r => r.user_id).filter(Boolean))];
-      const surveyIds = [...new Set(data?.map(r => r.survey_id).filter(Boolean))];
-
-      // Fetch user data
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, name, email, role_id, roles(name)')
-        .in('id', userIds);
-
-      if (userError) throw userError;
-
-      // Fetch survey data
-      const { data: surveyData, error: surveyError } = await supabase
-        .from('surveys')
-        .select('id, title, max_attempts')
-        .in('id', surveyIds);
-
-      if (surveyError) throw surveyError;
-
-      // Create lookup maps
-      const userMap = new Map(userData?.map(u => [u.id, u]) || []);
-      const surveyMap = new Map(surveyData?.map(s => [s.id, s]) || []);
-
-      const transformedData = (data || []).map(result => {
-        const user = userMap.get(result.user_id);
-        const survey = surveyMap.get(result.survey_id);
-
-        return {
-          id: result.id,
-          userId: result.user_id,
-          user: user ? {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: { name: user.roles?.name || 'Unknown Role' }
-          } : {
-            id: result.user_id,
-            name: 'Unknown User',
-            email: 'unknown@email.com',
-            role: { name: 'Unknown Role' }
-          },
-          surveyId: result.survey_id,
-          survey: survey ? {
-            title: survey.title,
-            maxAttempts: survey.max_attempts
-          } : {
-            title: 'Unknown Survey',
-            maxAttempts: 3
-          },
-          sessionId: result.session_id,
-          score: result.score,
-          totalQuestions: result.total_questions,
-          correctAnswers: result.correct_answers,
-          isPassed: result.is_passed,
-          timeSpent: result.time_spent,
-          attemptNumber: result.attempt_number,
-          sectionScores: [],
-          completedAt: new Date(result.completed_at),
-          certificateId: result.certificate_id,
-          grade: result.grade
-        };
-      });
-
-      return { success: true, data: results, message: 'Results fetched successfully' };
     } catch (error) {
       console.error('Error fetching results:', error);
       return { success: false, message: 'Failed to fetch results', data: [] };
