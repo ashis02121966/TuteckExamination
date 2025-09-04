@@ -930,6 +930,50 @@ export const surveyApi = {
       console.error('Delete survey error:', error);
       return { success: false, message: 'Failed to delete survey' };
     }
+  },
+
+  async getSurveySections(surveyId?: string) {
+    try {
+      if (isDemoMode) {
+        return { 
+          success: true, 
+          data: [], 
+          message: 'Survey sections fetched successfully (demo mode)' 
+        };
+      }
+
+      let query = supabase!
+        .from('survey_sections')
+        .select('*')
+        .order('section_order', { ascending: true });
+
+      if (surveyId) {
+        query = query.eq('survey_id', surveyId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        return { 
+          success: false, 
+          data: [], 
+          message: error.message 
+        };
+      }
+
+      return { 
+        success: true, 
+        data: data || [], 
+        message: 'Survey sections fetched successfully' 
+      };
+    } catch (error) {
+      console.error('Get survey sections error:', error);
+      return { 
+        success: false, 
+        data: [], 
+        message: error instanceof Error ? error.message : 'Failed to fetch survey sections' 
+      };
+    }
   }
 };
 
