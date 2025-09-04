@@ -1958,7 +1958,7 @@ class ResultApi extends BaseApi {
       const userMap = new Map(userData?.map(u => [u.id, u]) || []);
       const surveyMap = new Map(surveyData?.map(s => [s.id, s]) || []);
 
-      const transformedData = (data || []).map(result => {
+      const mappedResults = (data || []).map(result => {
         const user = userMap.get(result.user_id);
         const survey = surveyMap.get(result.survey_id);
 
@@ -1998,7 +1998,7 @@ class ResultApi extends BaseApi {
         };
       });
 
-      return { success: true, data: results, message: 'Results fetched successfully' };
+      return { success: true, data: mappedResults, message: 'Results fetched successfully' };
     } catch (error) {
       console.error('Error fetching results:', error);
       return { success: false, message: 'Failed to fetch results', data: [] };
