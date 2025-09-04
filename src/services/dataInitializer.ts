@@ -580,7 +580,7 @@ export class DataInitializer {
         survey_id: '550e8400-e29b-41d4-a716-446655440020',
         title: 'Basic Computer Skills',
         description: 'Fundamental computer operations and software usage',
-        questions_count: 10,
+        questions_count: 2,
         section_order: 1
       },
       {
@@ -588,7 +588,7 @@ export class DataInitializer {
         survey_id: '550e8400-e29b-41d4-a716-446655440020',
         title: 'Internet and Digital Communication',
         description: 'Web browsing, email, and online communication tools',
-        questions_count: 10,
+        questions_count: 1,
         section_order: 2
       },
       {
@@ -596,7 +596,7 @@ export class DataInitializer {
         survey_id: '550e8400-e29b-41d4-a716-446655440020',
         title: 'Digital Security and Privacy',
         description: 'Online safety, password management, and privacy protection',
-        questions_count: 10,
+        questions_count: 1,
         section_order: 3
       },
       // Data Collection Procedures sections
@@ -605,7 +605,7 @@ export class DataInitializer {
         survey_id: '550e8400-e29b-41d4-a716-446655440021',
         title: 'Field Data Collection',
         description: 'Methods and procedures for collecting data in the field',
-        questions_count: 15,
+        questions_count: 0,
         section_order: 1
       },
       {
@@ -613,7 +613,7 @@ export class DataInitializer {
         survey_id: '550e8400-e29b-41d4-a716-446655440021',
         title: 'Data Quality Assurance',
         description: 'Ensuring accuracy and completeness of collected data',
-        questions_count: 10,
+        questions_count: 0,
         section_order: 2
       }
     ];
