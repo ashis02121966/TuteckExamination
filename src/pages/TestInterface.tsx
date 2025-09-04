@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Card } from '../components/UI/Card';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
-import { testApi } from '../services/api';
+import { testApi, surveyApi, questionApi } from '../services/api';
 import { TestSession, Question, TestAnswer } from '../types';
 import { Clock, AlertTriangle, CheckCircle, ArrowLeft, ArrowRight, Flag, Eye, RotateCcw, Wifi, WifiOff, Save, Pause } from 'lucide-react';
 import { formatTime } from '../utils';
