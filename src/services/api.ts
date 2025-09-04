@@ -205,12 +205,12 @@ export const userApi = {
         };
       }
 
-      if (!supabase) {
+      if (!supabaseAdmin) {
         throw new Error('Supabase client not available');
       }
 
       // Fetch users with role information and get count
-      const { data: users, error, count } = await supabase
+      const { data: users, error, count } = await supabaseAdmin
         .from('users')
         .select(`
           *,
@@ -336,7 +336,7 @@ export const userApi = {
         return { success: true, data: mockUsers[0], message: 'Demo user updated' };
       }
 
-      if (!supabase) {
+      if (!supabaseAdmin) {
         throw new Error('Supabase client not available');
       }
 
@@ -358,7 +358,7 @@ export const userApi = {
         updateData.password_hash = bcrypt.hashSync(userData.password, 10);
       }
 
-      const { data: user, error } = await supabase
+      const { data: user, error } = await supabaseAdmin
         .from('users')
         .update(updateData)
         .eq('id', userId)
@@ -421,11 +421,11 @@ export const roleApi = {
         return { success: true, data: mockRoles, message: 'Roles fetched (demo)' };
       }
 
-      if (!supabase) {
+      if (!supabaseAdmin) {
         throw new Error('Supabase client not available');
       }
 
-      const { data: roles, error } = await supabase
+      const { data: roles, error } = await supabaseAdmin
         .from('roles')
         .select('*')
         .order('level', { ascending: true });
@@ -458,11 +458,11 @@ export const roleApi = {
         return { success: true, data: mockRoles[0], message: 'Demo role created' };
       }
 
-      if (!supabase) {
+      if (!supabaseAdmin) {
         throw new Error('Supabase client not available');
       }
 
-      const { data: role, error } = await supabase
+      const { data: role, error } = await supabaseAdmin
         .from('roles')
         .insert({
           name: roleData.name,
@@ -490,11 +490,11 @@ export const roleApi = {
         return { success: true, data: mockRoles[0], message: 'Demo role updated' };
       }
 
-      if (!supabase) {
+      if (!supabaseAdmin) {
         throw new Error('Supabase client not available');
       }
 
-      const { data: role, error } = await supabase
+      const { data: role, error } = await supabaseAdmin
         .from('roles')
         .update({
           name: roleData.name,
@@ -522,11 +522,11 @@ export const roleApi = {
         return { success: true, message: 'Demo role deleted' };
       }
 
-      if (!supabase) {
+      if (!supabaseAdmin) {
         throw new Error('Supabase client not available');
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('roles')
         .delete()
         .eq('id', roleId);
@@ -562,11 +562,11 @@ export const roleApi = {
         return { success: true, message: 'Demo menu access updated' };
       }
 
-      if (!supabase) {
+      if (!supabaseAdmin) {
         throw new Error('Supabase client not available');
       }
 
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('roles')
         .update({
           menu_access: menuAccess,
@@ -1022,7 +1022,7 @@ export const dashboardApi = {
 
       // Get total users count
       console.log('DashboardAPI: Fetching user count...');
-      const { count: userCount, error: userError } = await supabase
+      const { count: userCount, error: userError } = await supabaseAdmin
         .from('users')
         .select('*', { count: 'exact', head: true });
 
@@ -1033,7 +1033,7 @@ export const dashboardApi = {
       console.log('DashboardAPI: User count result:', userCount);
 
       // Get total surveys count
-      const { count: surveyCount, error: surveyError } = await supabase
+      const { count: surveyCount, error: surveyError } = await supabaseAdmin
         .from('surveys')
         .select('*', { count: 'exact', head: true });
 
@@ -1042,7 +1042,7 @@ export const dashboardApi = {
       }
 
       // Get total test attempts
-      const { count: attemptCount, error: attemptError } = await supabase
+      const { count: attemptCount, error: attemptError } = await supabaseAdmin
         .from('test_results')
         .select('*', { count: 'exact', head: true });
 
@@ -1051,7 +1051,7 @@ export const dashboardApi = {
       }
 
       // Get average score and pass rate
-      const { data: results, error: resultsError } = await supabase
+      const { data: results, error: resultsError } = await supabaseAdmin
         .from('test_results')
         .select('score, is_passed');
 
@@ -1065,7 +1065,7 @@ export const dashboardApi = {
       }
 
       // Get recent activity
-      const { data: activities, error: activityError } = await supabase
+      const { data: activities, error: activityError } = await supabaseAdmin
         .from('activity_logs')
         .select(`
           *,
@@ -1084,7 +1084,7 @@ export const dashboardApi = {
       }));
 
       // Get performance by role
-      const { data: rolePerformance, error: roleError } = await supabase
+      const { data: rolePerformance, error: roleError } = await supabaseAdmin
         .from('test_results')
         .select(`
           is_passed,
