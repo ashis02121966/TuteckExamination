@@ -1,20 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key-for-demo-mode-testing';
-const supabaseServiceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key-for-demo-mode-testing';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseServiceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
 // Check if Supabase is configured
 const isSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseAnonKey && 
   supabaseServiceRoleKey &&
-  supabaseUrl !== 'https://placeholder.supabase.co' &&
-  supabaseAnonKey !== 'placeholder-anon-key-for-demo-mode-testing' &&
-  supabaseServiceRoleKey !== 'placeholder-service-role-key-for-demo-mode-testing' &&
   supabaseUrl.includes('.supabase.co') &&
-  supabaseAnonKey.length > 50 &&
-  supabaseServiceRoleKey.length > 50
+  supabaseAnonKey.length > 20 &&
+  supabaseServiceRoleKey.length > 20
 );
 
 console.log('Supabase configuration check:', {
