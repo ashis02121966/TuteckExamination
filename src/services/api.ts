@@ -1825,11 +1825,15 @@ class ResultApi extends BaseApi {
           user:users(
             id,
             name,
-            email,
+            *,
             jurisdiction,
+              id,
+              name,
+              email,
             role:roles(
               id,
               name,
+              id,
               description,
               level
             )
