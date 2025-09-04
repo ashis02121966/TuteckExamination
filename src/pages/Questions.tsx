@@ -4,49 +4,35 @@ import { Card } from '../components/UI/Card';
 import { Button } from '../components/UI/Button';
 import { Input } from '../components/UI/Input';
 import { Modal } from '../components/UI/Modal';
-import { surveyApi, questionApi } from '../services/api';
-import { Survey, Section, Question } from '../types';
-import { Plus, Search, Edit, Trash2, Download, Upload, Eye, FileText, Book, Target, Clock, CheckCircle, X } from 'lucide-react';
-import { AlertTriangle } from 'lucide-react';
-import { formatDate } from '../utils';
+import { questionApi, surveyApi } from '../services/api';
+import { Question, Survey, Section } from '../types';
+import { Plus, Search, Edit, Trash2, Upload, Download, Filter, Eye, Book, FileText, Target, Clock } from 'lucide-react';
+import { formatDateTime } from '../utils';
 
 export function Questions() {
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [selectedSurvey, setSelectedSurvey] = useState<Survey | null>(null);
-  const [selectedSection, setSelectedSection] = useState<Section | null>(null);
-  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+  const [selectedSurvey, setSelectedSurvey] = useState<string>('');
+  const [selectedSection, setSelectedSection] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingSections, setIsLoadingSections] = useState(false);
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false);
-  const [isAddQuestionModalOpen, setIsAddQuestionModalOpen] = useState(false);
-  const [isEditQuestionModalOpen, setIsEditQuestionModalOpen] = useState(false);
-  const [isQuestionDetailModalOpen, setIsQuestionDetailModalOpen] = useState(false);
-  const [isDeleteSectionModalOpen, setIsDeleteSectionModalOpen] = useState(false);
-  const [sectionToDelete, setSectionToDelete] = useState<Section | null>(null);
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-
-  // Form states
-  const [sectionFormData, setSectionFormData] = useState({
-    title: '',
-    description: '',
-    questionsCount: 10,
-    order: 1
-  });
-
-  const [questionFormData, setQuestionFormData] = useState({
+  const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+  const [formData, setFormData] = useState({
     text: '',
     type: 'single_choice' as 'single_choice' | 'multiple_choice',
     complexity: 'medium' as 'easy' | 'medium' | 'hard',
     points: 1,
     explanation: '',
-    options: ['', '', '', ''],
-    correctAnswers: [] as number[]
+    options: [
+      { text: '', isCorrect: false },
+      { text: '', isCorrect: false },
+      { text: '', isCorrect: false },
+      { text: '', isCorrect: false }
+    ]
   });
 
   useEffect(() => {
@@ -55,17 +41,17 @@ export function Questions() {
 
   useEffect(() => {
     if (selectedSurvey) {
-      fetchSections(selectedSurvey.id);
+      fetchSections();
     } else {
       setSections([]);
-      setSelectedSection(null);
+      setSelectedSection('');
       setQuestions([]);
     }
   }, [selectedSurvey]);
 
   useEffect(() => {
     if (selectedSection) {
-      fetchQuestions(selectedSurvey!.id, selectedSection.id);
+      fetchQuestions();
     } else {
       setQuestions([]);
     }
@@ -75,7 +61,7 @@ export function Questions() {
     try {
       setIsLoading(true);
       const response = await surveyApi.getSurveys();
-      setSurveys(response.data);
+      setSurveys(response.data || []);
     } catch (error) {
       console.error('Failed to fetch surveys:', error);
     } finally {
@@ -83,314 +69,215 @@ export function Questions() {
     }
   };
 
-  const fetchSections = async (surveyId: string) => {
+  const fetchSections = async () => {
     try {
-      setIsLoadingSections(true);
-      const response = await surveyApi.getSurveySections(surveyId);
-      setSections(response.data);
+      if (!selectedSurvey) return;
+      
+      const response = await surveyApi.getSurveySections(selectedSurvey);
+      if (response.success && response.data) {
+        setSections(response.data);
+      }
     } catch (error) {
       console.error('Failed to fetch sections:', error);
-    } finally {
-      setIsLoadingSections(false);
     }
   };
 
-  const fetchQuestions = async (surveyId: string, sectionId: string) => {
+  const fetchQuestions = async () => {
     try {
-      setIsLoadingQuestions(true);
-      const response = await questionApi.getQuestions(surveyId, sectionId);
-      setQuestions(response.data);
+      if (!selectedSection) return;
+      
+      setIsLoading(true);
+      const response = await questionApi.getQuestions(selectedSection);
+      if (response.success && response.data) {
+        setQuestions(response.data);
+      }
     } catch (error) {
       console.error('Failed to fetch questions:', error);
     } finally {
-      setIsLoadingQuestions(false);
+      setIsLoading(false);
     }
   };
 
-  const handleSurveySelect = (survey: Survey) => {
-    setSelectedSurvey(survey);
-    setSelectedSection(null);
-    setQuestions([]);
-  };
-
-  const handleSectionSelect = (section: Section) => {
-    setSelectedSection(section);
-  };
-
-  const handleDownloadTemplate = async () => {
-    try {
-      const blob = await questionApi.downloadTemplate();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'question_template_with_survey_sections.csv';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to download template:', error);
+  const handleCreateQuestion = async () => {
+    if (!selectedSection) {
+      alert('Please select a section first');
+      return;
     }
-  };
 
-  const handleFileUpload = async () => {
-    if (!uploadFile) return;
-
-    try {
-      setIsUploading(true);
-      const response = await questionApi.uploadQuestions(selectedSurvey!.id, uploadFile);
-      if (response.success) {
-        const result = response.data;
-        let message = `Upload completed!\n\n`;
-        message += `✅ Questions added: ${result.questionsAdded}\n`;
-        if (result.questionsSkipped > 0) {
-          message += `⚠️ Questions skipped: ${result.questionsSkipped}\n`;
-        }
-        if (result.errors.length > 0) {
-          message += `\nErrors encountered:\n${result.errors.slice(0, 5).join('\n')}`;
-          if (result.errors.length > 5) {
-            message += `\n... and ${result.errors.length - 5} more errors`;
-          }
-        }
-        alert(message);
-        setIsUploadModalOpen(false);
-        setUploadFile(null);
-        // Refresh sections and questions
-        if (selectedSurvey) {
-          fetchSections(selectedSurvey.id);
-        }
-        if (selectedSection) {
-          fetchQuestions(selectedSurvey!.id, selectedSection.id);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to upload questions:', error);
-    } finally {
-      setIsUploading(false);
+    if (!formData.text.trim()) {
+      alert('Question text is required');
+      return;
     }
-  };
 
-  const handleDeleteSection = async () => {
-    if (!sectionToDelete) return;
-
-    try {
-      const response = await surveyApi.deleteSection(sectionToDelete.id);
-      if (response.success) {
-        setSections(sections.filter(s => s.id !== sectionToDelete.id));
-        setIsDeleteSectionModalOpen(false);
-        setSectionToDelete(null);
-        
-        // If the deleted section was selected, clear selection
-        if (selectedSection?.id === sectionToDelete.id) {
-          setSelectedSection(null);
-          setQuestions([]);
-        }
-        
-        alert('Section deleted successfully!');
-      } else {
-        alert(`Failed to delete section: ${response.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to delete section:', error);
-      alert('Failed to delete section. Please try again.');
+    const validOptions = formData.options.filter(opt => opt.text.trim());
+    if (validOptions.length < 2) {
+      alert('At least 2 options are required');
+      return;
     }
-  };
 
-  const openDeleteSectionModal = (section: Section, event: React.MouseEvent) => {
-    event.stopPropagation();
-    setSectionToDelete(section);
-    setIsDeleteSectionModalOpen(true);
-  };
-
-  const resetSectionForm = () => {
-    setSectionFormData({
-      title: '',
-      description: '',
-      questionsCount: 10,
-      order: sections.length + 1
-    });
-  };
-
-  const resetQuestionForm = () => {
-    setQuestionFormData({
-      text: '',
-      type: 'single_choice',
-      complexity: 'medium',
-      points: 1,
-      explanation: '',
-      options: ['', '', '', ''],
-      correctAnswers: []
-    });
-    setSelectedQuestion(null);
-  };
-
-  const handleAddSection = async () => {
-    if (!selectedSurvey) return;
+    const correctOptions = validOptions.filter(opt => opt.isCorrect);
+    if (correctOptions.length === 0) {
+      alert('At least one correct option is required');
+      return;
+    }
 
     try {
-      const response = await surveyApi.createSection(selectedSurvey.id, sectionFormData);
+      const response = await questionApi.createQuestion({
+        sectionId: selectedSection,
+        text: formData.text,
+        type: formData.type,
+        complexity: formData.complexity,
+        points: formData.points,
+        explanation: formData.explanation,
+        options: validOptions
+      });
+
       if (response.success && response.data) {
-        setSections([...sections, response.data]);
-        setIsAddSectionModalOpen(false);
-        resetSectionForm();
+        setQuestions([...questions, response.data]);
+        setIsCreateModalOpen(false);
+        resetForm();
+        alert('Question created successfully!');
+      } else {
+        alert(`Failed to create question: ${response.message}`);
       }
     } catch (error) {
-      console.error('Failed to create section:', error);
+      console.error('Failed to create question:', error);
+      alert('Failed to create question. Please try again.');
     }
   };
 
-  const openAddQuestionModal = () => {
-    resetQuestionForm();
-    setIsAddQuestionModalOpen(true);
+  const handleEditQuestion = async () => {
+    if (!selectedQuestion) return;
+
+    if (!formData.text.trim()) {
+      alert('Question text is required');
+      return;
+    }
+
+    const validOptions = formData.options.filter(opt => opt.text.trim());
+    if (validOptions.length < 2) {
+      alert('At least 2 options are required');
+      return;
+    }
+
+    const correctOptions = validOptions.filter(opt => opt.isCorrect);
+    if (correctOptions.length === 0) {
+      alert('At least one correct option is required');
+      return;
+    }
+
+    try {
+      const response = await questionApi.updateQuestion(selectedQuestion.id, {
+        text: formData.text,
+        type: formData.type,
+        complexity: formData.complexity,
+        points: formData.points,
+        explanation: formData.explanation,
+        options: validOptions
+      });
+
+      if (response.success && response.data) {
+        setQuestions(questions.map(q => q.id === selectedQuestion.id ? response.data! : q));
+        setIsEditModalOpen(false);
+        resetForm();
+        alert('Question updated successfully!');
+      } else {
+        alert(`Failed to update question: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to update question:', error);
+      alert('Failed to update question. Please try again.');
+    }
   };
 
-  const openEditQuestionModal = (question: Question) => {
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (window.confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
+      try {
+        const response = await questionApi.deleteQuestion(questionId);
+        if (response.success) {
+          setQuestions(questions.filter(q => q.id !== questionId));
+          alert('Question deleted successfully!');
+        } else {
+          alert(`Failed to delete question: ${response.message}`);
+        }
+      } catch (error) {
+        console.error('Failed to delete question:', error);
+        alert('Failed to delete question. Please try again.');
+      }
+    }
+  };
+
+  const openEditModal = (question: Question) => {
     setSelectedQuestion(question);
-    setQuestionFormData({
+    setFormData({
       text: question.text,
       type: question.type,
       complexity: question.complexity,
       points: question.points,
       explanation: question.explanation || '',
-      options: question.options.map(opt => opt.text),
-      correctAnswers: question.options
-        .map((opt, index) => opt.isCorrect ? index : -1)
-        .filter(index => index !== -1)
+      options: question.options.length > 0 ? question.options : [
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false }
+      ]
     });
-    setIsEditQuestionModalOpen(true);
+    setIsEditModalOpen(true);
   };
 
-  const openQuestionDetailModal = (question: Question) => {
-    setSelectedQuestion(question);
-    setIsQuestionDetailModalOpen(true);
+  const resetForm = () => {
+    setFormData({
+      text: '',
+      type: 'single_choice',
+      complexity: 'medium',
+      points: 1,
+      explanation: '',
+      options: [
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false },
+        { text: '', isCorrect: false }
+      ]
+    });
+    setSelectedQuestion(null);
   };
 
-  const handleAddQuestion = async () => {
-    if (!selectedSection) return;
-
-    console.log('Adding question to section:', selectedSection.id);
-    console.log('Question form data:', questionFormData);
-
-    try {
-      const questionData = {
-        sectionId: selectedSection.id,
-        text: questionFormData.text,
-        type: questionFormData.type,
-        complexity: questionFormData.complexity,
-        points: questionFormData.points,
-        explanation: questionFormData.explanation,
-        options: questionFormData.options.map((text, index) => ({
-          text,
-          isCorrect: questionFormData.correctAnswers.includes(index),
-        })),
-        order: questions.length + 1
-      };
-
-      console.log('Calling API to create question:', questionData);
-      const response = await questionApi.createQuestion(questionData);
-      console.log('API response:', response);
-      
-      if (response.success && response.data) {
-        setQuestions([...questions, response.data]);
-        setIsAddQuestionModalOpen(false);
-        resetQuestionForm();
-        
-        // Show success message
-        alert(`Question added successfully! ${response.message}`);
-      } else {
-        console.error('Failed to create question:', response.message);
-        alert(`Failed to create question: ${response.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to create question:', error);
-      alert(`Failed to create question: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
-    }
-  };
-
-  const handleUpdateQuestion = async () => {
-    if (!selectedQuestion) return;
-
-    try {
-      const questionData = {
-        text: questionFormData.text,
-        type: questionFormData.type,
-        complexity: questionFormData.complexity,
-        points: questionFormData.points,
-        explanation: questionFormData.explanation,
-        options: questionFormData.options.map((text, index) => ({
-          text,
-          isCorrect: questionFormData.correctAnswers.includes(index),
-          order: index + 1
-        }))
-      };
-
-      // Update the question in local state (in real app, this would be an API call)
-      const updatedQuestion = {
-        ...selectedQuestion,
-        ...questionData,
-        options: questionData.options.map((opt, index) => ({
-          id: selectedQuestion.options[index]?.id || `opt_${index}`,
-          text: opt.text,
-          isCorrect: opt.isCorrect
-        }))
-      };
-
-      setQuestions(questions.map(q => q.id === selectedQuestion.id ? updatedQuestion : q));
-      setIsEditQuestionModalOpen(false);
-      resetQuestionForm();
-    } catch (error) {
-      console.error('Failed to update question:', error);
-    }
-  };
-
-  const handleDeleteQuestion = async (questionId: string) => {
-    if (window.confirm('Are you sure you want to delete this question?')) {
-      try {
-        setQuestions(questions.filter(q => q.id !== questionId));
-      } catch (error) {
-        console.error('Failed to delete question:', error);
-      }
-    }
-  };
-
-  const handleCorrectAnswerChange = (optionIndex: number) => {
-    if (questionFormData.type === 'single_choice') {
-      setQuestionFormData({
-        ...questionFormData,
-        correctAnswers: [optionIndex]
-      });
-    } else {
-      const newCorrectAnswers = questionFormData.correctAnswers.includes(optionIndex)
-        ? questionFormData.correctAnswers.filter(index => index !== optionIndex)
-        : [...questionFormData.correctAnswers, optionIndex];
-      
-      setQuestionFormData({
-        ...questionFormData,
-        correctAnswers: newCorrectAnswers
+  const handleOptionChange = (index: number, field: 'text' | 'isCorrect', value: string | boolean) => {
+    const newOptions = [...formData.options];
+    newOptions[index] = { ...newOptions[index], [field]: value };
+    
+    // For single choice, ensure only one option is correct
+    if (field === 'isCorrect' && value === true && formData.type === 'single_choice') {
+      newOptions.forEach((opt, i) => {
+        if (i !== index) {
+          opt.isCorrect = false;
+        }
       });
     }
+    
+    setFormData({ ...formData, options: newOptions });
   };
 
-  const filteredSurveys = (surveys || []).filter(survey =>
-    survey.title.toLowerCase().includes(searchTerm.toLowerCase())
+  const addOption = () => {
+    setFormData({
+      ...formData,
+      options: [...formData.options, { text: '', isCorrect: false }]
+    });
+  };
+
+  const removeOption = (index: number) => {
+    if (formData.options.length > 2) {
+      const newOptions = formData.options.filter((_, i) => i !== index);
+      setFormData({ ...formData, options: newOptions });
+    }
+  };
+
+  const filteredQuestions = questions.filter(question =>
+    question.text.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getComplexityColor = (complexity: string) => {
-    switch (complexity) {
-      case 'easy': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'hard': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'single_choice': return 'bg-blue-100 text-blue-800';
-      case 'multiple_choice': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const selectedSurveyData = surveys.find(s => s.id === selectedSurvey);
+  const selectedSectionData = sections.find(s => s.id === selectedSection);
 
   return (
     <Layout>
@@ -398,459 +285,269 @@ export function Questions() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Question Bank</h1>
-            <p className="text-gray-600 mt-2">Manage questions for your surveys and assessments</p>
+            <p className="text-gray-600 mt-2">Manage questions for your surveys</p>
           </div>
           <div className="flex items-center space-x-3">
             <Button
               variant="secondary"
-              onClick={handleDownloadTemplate}
-              className="flex items-center space-x-2"
-            >
-              <Download className="w-4 h-4" />
-              <span>Download Template</span>
-            </Button>
-            <Button
               onClick={() => setIsUploadModalOpen(true)}
-              disabled={!selectedSurvey}
               className="flex items-center space-x-2"
+              disabled={!selectedSection}
             >
               <Upload className="w-4 h-4" />
-              <span>Upload Questions</span>
+              <span>Bulk Upload</span>
+            </Button>
+            <Button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="flex items-center space-x-2"
+              disabled={!selectedSection}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Question</span>
             </Button>
           </div>
         </div>
 
-        {/* Search */}
+        {/* Survey and Section Selection */}
         <Card className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <Input
-              placeholder="Search surveys..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </Card>
-
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Surveys */}
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Surveys</h3>
-              <span className="text-sm text-gray-500">{surveys.length} surveys</span>
-            </div>
-            
-            <div className="h-[500px] overflow-y-auto space-y-2">
-              {isLoading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-gray-500 mt-2 text-sm">Loading surveys...</p>
-                </div>
-              ) : (
-                filteredSurveys.map((survey) => (
-                  <div
-                    key={survey.id}
-                    onClick={() => {
-                      console.log('Survey selected:', survey.title);
-                      setSelectedSurvey(survey);
-                      setSelectedSection(null);
-                      setQuestions([]);
-                    }}
-                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                      selectedSurvey?.id === survey.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <h4 className="font-medium text-gray-900 mb-1">{survey.title}</h4>
-                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">{survey.description}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>{survey.totalQuestions} questions</span>
-                      <span>{formatDate(survey.targetDate)}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-
-          {/* Sections */}
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {selectedSurvey ? `Sections - ${selectedSurvey.title}` : 'Sections'}
-              </h3>
-              {selectedSurvey && (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    resetSectionForm();
-                    setIsAddSectionModalOpen(true);
-                  }}
-                  className="flex items-center space-x-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Section</span>
-                </Button>
-              )}
-            </div>
-            
-            <div className="h-[calc(100%-80px)] overflow-y-auto space-y-2">
-              {!selectedSurvey ? (
-                <div className="text-center py-12">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500">Select a survey to view sections</p>
-                </div>
-              ) : isLoadingSections ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-gray-500 mt-2 text-sm">Loading sections...</p>
-                </div>
-              ) : sections.length === 0 ? (
-                <div className="text-center py-12">
-                  <Book className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500 mb-3">No sections found</p>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSectionFormData({
-                        title: '',
-                        description: '',
-                        questionsCount: 10,
-                        order: 1
-                      });
-                      setIsAddSectionModalOpen(true);
-                    }}
-                    className="flex items-center space-x-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add First Section</span>
-                  </Button>
-                </div>
-              ) : (
-                sections.map((section) => (
-                  <div
-                    key={section.id}
-                    onClick={() => handleSectionSelect(section)}
-                    className={`group p-4 rounded-lg border cursor-pointer transition-colors ${
-                      selectedSection?.id === section.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="font-medium text-gray-900">{section.title}</h4>
-                      <button
-                        onClick={(e) => openDeleteSectionModal(section, e)}
-                        className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                        title="Delete Section"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2 line-clamp-2">{section.description}</p>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <span>{section.questionsCount} questions</span>
-                      <span>Order: {section.order}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Questions Table */}
-        {selectedSection && (
-          <Card className="mt-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Questions - {selectedSection.title}
-                </h3>
-                <p className="text-sm text-gray-600">{questions.length} questions in this section</p>
-              </div>
-              <Button
-                onClick={openAddQuestionModal}
-                className="flex items-center space-x-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Question</span>
-              </Button>
-            </div>
-
-            {isLoadingQuestions ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-500 mt-2">Loading questions...</p>
-              </div>
-            ) : questions.length === 0 ? (
-              <div className="text-center py-12">
-                <Target className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Questions Yet</h3>
-                <p className="text-gray-500 mb-4">Start building your assessment by adding questions to this section.</p>
-                <Button
-                  onClick={openAddQuestionModal}
-                  className="flex items-center space-x-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add First Question</span>
-                </Button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <div className="max-h-96 overflow-y-auto">
-                  <table className="w-full">
-                    <thead className="sticky top-0 bg-gray-50">
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Question</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Type</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Complexity</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Points</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Options</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Order</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {questions.map((question) => (
-                        <tr key={question.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4">
-                            <div className="max-w-xs">
-                              <p className="font-medium text-gray-900 line-clamp-2">{question.text}</p>
-                              {question.explanation && (
-                                <p className="text-xs text-gray-500 mt-1 line-clamp-1">
-                                  Explanation: {question.explanation}
-                                </p>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(question.type)}`}>
-                              {question.type === 'single_choice' ? 'Single' : 'Multiple'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getComplexityColor(question.complexity)}`}>
-                              {question.complexity.charAt(0).toUpperCase() + question.complexity.slice(1)}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="font-medium text-gray-900">{question.points}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="max-w-xs">
-                              {question.options.slice(0, 2).map((option, index) => (
-                                <div key={index} className="flex items-center space-x-1 text-sm">
-                                  <span className="font-medium text-gray-600">
-                                    {String.fromCharCode(65 + index)}:
-                                  </span>
-                                  <span className={`${option.isCorrect ? 'text-green-600 font-medium' : 'text-gray-700'}`}>
-                                    {option.text.length > 30 ? `${option.text.substring(0, 30)}...` : option.text}
-                                  </span>
-                                  {option.isCorrect && <CheckCircle className="w-3 h-3 text-green-600" />}
-                                </div>
-                              ))}
-                              {question.options.length > 2 && (
-                                <span className="text-xs text-gray-500">+{question.options.length - 2} more</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="text-gray-900">{question.order}</span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => openQuestionDetailModal(question)}
-                                className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-                                title="View Details"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => openEditQuestionModal(question)}
-                                className="p-1.5 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors"
-                                title="Edit Question"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteQuestion(question.id)}
-                                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                                title="Delete Question"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </Card>
-        )}
-
-        {/* Upload Questions Modal */}
-        <Modal
-          isOpen={isUploadModalOpen}
-          onClose={() => {
-            setIsUploadModalOpen(false);
-            setUploadFile(null);
-          }}
-          title="Upload Questions"
-        >
-          <div className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <h4 className="font-medium text-blue-900 mb-2">Upload Instructions</h4>
-              <ul className="text-sm text-blue-800 space-y-1">
-                <li>• Download the template first to see the required format</li>
-                <li>• Include Survey ID, Survey Title, Section ID, Section Title for proper mapping</li>
-                <li>• Questions will be automatically assigned to the correct surveys and sections</li>
-                <li>• Supported file format: CSV only</li>
-              </ul>
-            </div>
-            
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select CSV File
+                Select Survey
               </label>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-            </div>
-            
-            {uploadFile && (
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium">Selected file:</span> {uploadFile.name}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Size: {(uploadFile.size / 1024).toFixed(2)} KB
-                </p>
-              </div>
-            )}
-            
-            <div className="flex justify-end space-x-3 pt-4">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setIsUploadModalOpen(false);
-                  setUploadFile(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleFileUpload}
-                disabled={!uploadFile || isUploading}
-                loading={isUploading}
-              >
-                Upload Questions
-              </Button>
-            </div>
-          </div>
-        </Modal>
-
-        {/* Add Section Modal */}
-        <Modal
-          isOpen={isAddSectionModalOpen}
-          onClose={() => {
-            setIsAddSectionModalOpen(false);
-            resetSectionForm();
-          }}
-          title="Add New Section"
-        >
-          <div className="space-y-4">
-            <Input
-              label="Section Title"
-              value={sectionFormData.title}
-              onChange={(e) => setSectionFormData({ ...sectionFormData, title: e.target.value })}
-              placeholder="Enter section title"
-            />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea
-                value={sectionFormData.description}
-                onChange={(e) => setSectionFormData({ ...sectionFormData, description: e.target.value })}
-                placeholder="Enter section description"
-                rows={3}
+              <select
+                value={selectedSurvey}
+                onChange={(e) => setSelectedSurvey(e.target.value)}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Questions Count"
-                type="number"
-                value={sectionFormData.questionsCount}
-                onChange={(e) => setSectionFormData({ ...sectionFormData, questionsCount: parseInt(e.target.value) })}
-                min="1"
-              />
-              <Input
-                label="Section Order"
-                type="number"
-                value={sectionFormData.order}
-                onChange={(e) => setSectionFormData({ ...sectionFormData, order: parseInt(e.target.value) })}
-                min="1"
-              />
-            </div>
-            <div className="flex justify-end space-x-3 pt-4">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setIsAddSectionModalOpen(false);
-                  resetSectionForm();
-                }}
               >
-                Cancel
-              </Button>
-              <Button onClick={handleAddSection}>
-                Add Section
-              </Button>
+                <option value="">Choose a survey...</option>
+                {surveys.map((survey) => (
+                  <option key={survey.id} value={survey.id}>
+                    {survey.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Section
+              </label>
+              <select
+                value={selectedSection}
+                onChange={(e) => setSelectedSection(e.target.value)}
+                disabled={!selectedSurvey}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+              >
+                <option value="">Choose a section...</option>
+                {sections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.title}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
-        </Modal>
+          
+          {selectedSurveyData && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-medium text-blue-900 mb-2">{selectedSurveyData.title}</h3>
+              <p className="text-sm text-blue-800 mb-2">{selectedSurveyData.description}</p>
+              <div className="grid grid-cols-4 gap-4 text-sm">
+                <div className="flex items-center space-x-1">
+                  <Target className="w-4 h-4 text-blue-600" />
+                  <span>Pass: {selectedSurveyData.passingScore}%</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Clock className="w-4 h-4 text-blue-600" />
+                  <span>Duration: {selectedSurveyData.duration}m</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <FileText className="w-4 h-4 text-blue-600" />
+                  <span>Questions: {selectedSurveyData.totalQuestions}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Book className="w-4 h-4 text-blue-600" />
+                  <span>Sections: {sections.length}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {selectedSectionData && (
+            <div className="mt-4 p-4 bg-green-50 rounded-lg">
+              <h4 className="font-medium text-green-900 mb-1">{selectedSectionData.title}</h4>
+              <p className="text-sm text-green-800">{selectedSectionData.description}</p>
+              <p className="text-xs text-green-700 mt-1">
+                Target Questions: {selectedSectionData.questions_count} | Current Questions: {questions.length}
+              </p>
+            </div>
+          )}
+        </Card>
 
-        {/* Add Question Modal */}
+        {/* Questions List */}
+        <Card>
+          {!selectedSection ? (
+            <div className="text-center py-12">
+              <Book className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Select Survey and Section</h3>
+              <p className="text-gray-500">Choose a survey and section to view and manage questions</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input
+                    placeholder="Search questions..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-64"
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">
+                    {questions.length} question{questions.length !== 1 ? 's' : ''} in this section
+                  </span>
+                </div>
+              </div>
+
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="text-gray-500 mt-2">Loading questions...</p>
+                </div>
+              ) : filteredQuestions.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    {searchTerm ? 'No Questions Found' : 'No Questions in This Section'}
+                  </h3>
+                  <p className="text-gray-500 mb-4">
+                    {searchTerm 
+                      ? 'No questions match your search criteria.' 
+                      : 'Get started by adding your first question to this section.'
+                    }
+                  </p>
+                  {!searchTerm && (
+                    <Button
+                      onClick={() => setIsCreateModalOpen(true)}
+                      className="flex items-center space-x-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add First Question</span>
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredQuestions.map((question, index) => (
+                    <div key={question.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
+                              Question {index + 1}
+                            </span>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              question.type === 'single_choice' 
+                                ? 'bg-blue-100 text-blue-800' 
+                                : 'bg-purple-100 text-purple-800'
+                            }`}>
+                              {question.type === 'single_choice' ? 'Single Choice' : 'Multiple Choice'}
+                            </span>
+                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              question.complexity === 'easy' ? 'bg-green-100 text-green-800' :
+                              question.complexity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {question.complexity.charAt(0).toUpperCase() + question.complexity.slice(1)}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {question.points} point{question.points !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-3">{question.text}</h3>
+                          
+                          <div className="space-y-2">
+                            {question.options.map((option, optIndex) => (
+                              <div key={optIndex} className={`flex items-center space-x-2 p-2 rounded ${
+                                option.isCorrect ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
+                              }`}>
+                                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+                                  option.isCorrect ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
+                                }`}>
+                                  {String.fromCharCode(65 + optIndex)}
+                                </span>
+                                <span className="text-gray-900">{option.text}</span>
+                                {option.isCorrect && (
+                                  <span className="text-xs text-green-600 font-medium">✓ Correct</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {question.explanation && (
+                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <p className="text-sm text-blue-800">
+                                <strong>Explanation:</strong> {question.explanation}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => openEditModal(question)}
+                            className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+                            title="Edit Question"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteQuestion(question.id)}
+                            className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                            title="Delete Question"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+
+        {/* Create Question Modal */}
         <Modal
-          isOpen={isAddQuestionModalOpen}
+          isOpen={isCreateModalOpen}
           onClose={() => {
-            setIsAddQuestionModalOpen(false);
-            resetQuestionForm();
+            setIsCreateModalOpen(false);
+            resetForm();
           }}
-          title={`Add Question to ${selectedSection?.title}`}
+          title="Create New Question"
           size="xl"
         >
           <div className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Question Text</label>
               <textarea
-                value={questionFormData.text}
-                onChange={(e) => setQuestionFormData({ ...questionFormData, text: e.target.value })}
-                placeholder="Enter your question here..."
+                value={formData.text}
+                onChange={(e) => setFormData({ ...formData, text: e.target.value })}
+                placeholder="Enter your question..."
                 rows={3}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Question Type</label>
                 <select
-                  value={questionFormData.type}
-                  onChange={(e) => setQuestionFormData({ 
-                    ...questionFormData, 
-                    type: e.target.value as 'single_choice' | 'multiple_choice',
-                    correctAnswers: [] // Reset correct answers when type changes
-                  })}
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="single_choice">Single Choice</option>
@@ -860,8 +557,8 @@ export function Questions() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Complexity</label>
                 <select
-                  value={questionFormData.complexity}
-                  onChange={(e) => setQuestionFormData({ ...questionFormData, complexity: e.target.value as 'easy' | 'medium' | 'hard' })}
+                  value={formData.complexity}
+                  onChange={(e) => setFormData({ ...formData, complexity: e.target.value as any })}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="easy">Easy</option>
@@ -869,63 +566,73 @@ export function Questions() {
                   <option value="hard">Hard</option>
                 </select>
               </div>
-              <Input
-                label="Points"
-                type="number"
-                value={questionFormData.points}
-                onChange={(e) => setQuestionFormData({ ...questionFormData, points: parseInt(e.target.value) })}
-                min="1"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Points</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.points}
+                  onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) })}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Answer Options {questionFormData.type === 'single_choice' ? '(Select one correct answer)' : '(Select multiple correct answers)'}
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Answer Options</label>
               <div className="space-y-3">
-                {questionFormData.options.map((option, index) => (
+                {formData.options.map((option, index) => (
                   <div key={index} className="flex items-center space-x-3">
-                    <div className="flex items-center">
-                      {questionFormData.type === 'single_choice' ? (
-                        <input
-                          type="radio"
-                          name="correctAnswer"
-                          checked={questionFormData.correctAnswers.includes(index)}
-                          onChange={() => handleCorrectAnswerChange(index)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={questionFormData.correctAnswers.includes(index)}
-                          onChange={() => handleCorrectAnswerChange(index)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      )}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 w-8">
-                      {String.fromCharCode(65 + index)}:
+                    <span className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium">
+                      {String.fromCharCode(65 + index)}
                     </span>
-                    <Input
-                      value={option}
-                      onChange={(e) => {
-                        const newOptions = [...questionFormData.options];
-                        newOptions[index] = e.target.value;
-                        setQuestionFormData({ ...questionFormData, options: newOptions });
-                      }}
+                    <input
+                      type="text"
+                      value={option.text}
+                      onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
                       placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                      className="flex-1"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type={formData.type === 'single_choice' ? 'radio' : 'checkbox'}
+                        name="correct-answer"
+                        checked={option.isCorrect}
+                        onChange={(e) => handleOptionChange(index, 'isCorrect', e.target.checked)}
+                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                      <span className="text-sm text-gray-700">Correct</span>
+                    </label>
+                    {formData.options.length > 2 && (
+                      <button
+                        onClick={() => removeOption(index)}
+                        className="p-1 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
+              
+              {formData.options.length < 6 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={addOption}
+                  className="mt-3"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Option
+                </Button>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Explanation (Optional)</label>
               <textarea
-                value={questionFormData.explanation}
-                onChange={(e) => setQuestionFormData({ ...questionFormData, explanation: e.target.value })}
+                value={formData.explanation}
+                onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
                 placeholder="Provide an explanation for the correct answer..."
                 rows={2}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -936,17 +643,14 @@ export function Questions() {
               <Button
                 variant="secondary"
                 onClick={() => {
-                  setIsAddQuestionModalOpen(false);
-                  resetQuestionForm();
+                  setIsCreateModalOpen(false);
+                  resetForm();
                 }}
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleAddQuestion}
-                disabled={!questionFormData.text.trim() || questionFormData.correctAnswers.length === 0}
-              >
-                Add Question
+              <Button onClick={handleCreateQuestion}>
+                Create Question
               </Button>
             </div>
           </div>
@@ -954,10 +658,10 @@ export function Questions() {
 
         {/* Edit Question Modal */}
         <Modal
-          isOpen={isEditQuestionModalOpen}
+          isOpen={isEditModalOpen}
           onClose={() => {
-            setIsEditQuestionModalOpen(false);
-            resetQuestionForm();
+            setIsEditModalOpen(false);
+            resetForm();
           }}
           title="Edit Question"
           size="xl"
@@ -966,24 +670,20 @@ export function Questions() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Question Text</label>
               <textarea
-                value={questionFormData.text}
-                onChange={(e) => setQuestionFormData({ ...questionFormData, text: e.target.value })}
-                placeholder="Enter your question here..."
+                value={formData.text}
+                onChange={(e) => setFormData({ ...formData, text: e.target.value })}
+                placeholder="Enter your question..."
                 rows={3}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Question Type</label>
                 <select
-                  value={questionFormData.type}
-                  onChange={(e) => setQuestionFormData({ 
-                    ...questionFormData, 
-                    type: e.target.value as 'single_choice' | 'multiple_choice',
-                    correctAnswers: [] // Reset correct answers when type changes
-                  })}
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="single_choice">Single Choice</option>
@@ -993,8 +693,8 @@ export function Questions() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Complexity</label>
                 <select
-                  value={questionFormData.complexity}
-                  onChange={(e) => setQuestionFormData({ ...questionFormData, complexity: e.target.value as 'easy' | 'medium' | 'hard' })}
+                  value={formData.complexity}
+                  onChange={(e) => setFormData({ ...formData, complexity: e.target.value as any })}
                   className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="easy">Easy</option>
@@ -1002,63 +702,73 @@ export function Questions() {
                   <option value="hard">Hard</option>
                 </select>
               </div>
-              <Input
-                label="Points"
-                type="number"
-                value={questionFormData.points}
-                onChange={(e) => setQuestionFormData({ ...questionFormData, points: parseInt(e.target.value) })}
-                min="1"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Points</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.points}
+                  onChange={(e) => setFormData({ ...formData, points: parseInt(e.target.value) })}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Answer Options {questionFormData.type === 'single_choice' ? '(Select one correct answer)' : '(Select multiple correct answers)'}
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Answer Options</label>
               <div className="space-y-3">
-                {questionFormData.options.map((option, index) => (
+                {formData.options.map((option, index) => (
                   <div key={index} className="flex items-center space-x-3">
-                    <div className="flex items-center">
-                      {questionFormData.type === 'single_choice' ? (
-                        <input
-                          type="radio"
-                          name="correctAnswer"
-                          checked={questionFormData.correctAnswers.includes(index)}
-                          onChange={() => handleCorrectAnswerChange(index)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={questionFormData.correctAnswers.includes(index)}
-                          onChange={() => handleCorrectAnswerChange(index)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      )}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 w-8">
-                      {String.fromCharCode(65 + index)}:
+                    <span className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-sm font-medium">
+                      {String.fromCharCode(65 + index)}
                     </span>
-                    <Input
-                      value={option}
-                      onChange={(e) => {
-                        const newOptions = [...questionFormData.options];
-                        newOptions[index] = e.target.value;
-                        setQuestionFormData({ ...questionFormData, options: newOptions });
-                      }}
+                    <input
+                      type="text"
+                      value={option.text}
+                      onChange={(e) => handleOptionChange(index, 'text', e.target.value)}
                       placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                      className="flex-1"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type={formData.type === 'single_choice' ? 'radio' : 'checkbox'}
+                        name="correct-answer"
+                        checked={option.isCorrect}
+                        onChange={(e) => handleOptionChange(index, 'isCorrect', e.target.checked)}
+                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                      <span className="text-sm text-gray-700">Correct</span>
+                    </label>
+                    {formData.options.length > 2 && (
+                      <button
+                        onClick={() => removeOption(index)}
+                        className="p-1 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
+              
+              {formData.options.length < 6 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={addOption}
+                  className="mt-3"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Option
+                </Button>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Explanation (Optional)</label>
               <textarea
-                value={questionFormData.explanation}
-                onChange={(e) => setQuestionFormData({ ...questionFormData, explanation: e.target.value })}
+                value={formData.explanation}
+                onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
                 placeholder="Provide an explanation for the correct answer..."
                 rows={2}
                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -1069,164 +779,56 @@ export function Questions() {
               <Button
                 variant="secondary"
                 onClick={() => {
-                  setIsEditQuestionModalOpen(false);
-                  resetQuestionForm();
+                  setIsEditModalOpen(false);
+                  resetForm();
                 }}
               >
                 Cancel
               </Button>
-              <Button
-                onClick={handleUpdateQuestion}
-                disabled={!questionFormData.text.trim() || questionFormData.correctAnswers.length === 0}
-              >
+              <Button onClick={handleEditQuestion}>
                 Update Question
               </Button>
             </div>
           </div>
         </Modal>
 
-        {/* Question Detail Modal */}
+        {/* Upload Modal */}
         <Modal
-          isOpen={isQuestionDetailModalOpen}
-          onClose={() => {
-            setIsQuestionDetailModalOpen(false);
-            setSelectedQuestion(null);
-          }}
-          title="Question Details"
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          title="Bulk Upload Questions"
           size="lg"
         >
-          {selectedQuestion && (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Question</h3>
-                <p className="text-gray-700">{selectedQuestion.text}</p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-1">Type</h4>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(selectedQuestion.type)}`}>
-                    {selectedQuestion.type === 'single_choice' ? 'Single Choice' : 'Multiple Choice'}
-                  </span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-1">Complexity</h4>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getComplexityColor(selectedQuestion.complexity)}`}>
-                    {selectedQuestion.complexity.charAt(0).toUpperCase() + selectedQuestion.complexity.slice(1)}
-                  </span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-1">Points</h4>
-                  <span className="text-lg font-semibold text-blue-600">{selectedQuestion.points}</span>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-medium text-gray-900 mb-3">Answer Options</h4>
-                <div className="space-y-2">
-                  {selectedQuestion.options.map((option, index) => (
-                    <div
-                      key={index}
-                      className={`flex items-center space-x-3 p-3 rounded-lg ${
-                        option.isCorrect ? 'bg-green-50 border border-green-200' : 'bg-gray-50'
-                      }`}
-                    >
-                      <span className="font-medium text-gray-700 w-8">
-                        {String.fromCharCode(65 + index)}:
-                      </span>
-                      <span className={`flex-1 ${option.isCorrect ? 'text-green-800 font-medium' : 'text-gray-700'}`}>
-                        {option.text}
-                      </span>
-                      {option.isCorrect && (
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {selectedQuestion.explanation && (
-                <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Explanation</h4>
-                  <p className="text-gray-700 bg-blue-50 p-3 rounded-lg">{selectedQuestion.explanation}</p>
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-3 pt-4 border-t">
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setIsQuestionDetailModalOpen(false);
-                    setSelectedQuestion(null);
-                  }}
-                >
-                  Close
-                </Button>
-                <Button
-                  onClick={() => {
-                    setIsQuestionDetailModalOpen(false);
-                    openEditQuestionModal(selectedQuestion);
-                  }}
-                  className="flex items-center space-x-2"
-                >
-                  <Edit className="w-4 h-4" />
-                  <span>Edit Question</span>
-                </Button>
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">CSV Format Requirements</h4>
+              <p className="text-sm text-blue-800 mb-2">Your CSV file should have the following columns:</p>
+              <div className="text-xs text-blue-700 font-mono bg-blue-100 p-2 rounded">
+                Question,Type,Complexity,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Points,Explanation
               </div>
             </div>
-          )}
-        </Modal>
-
-        {/* Delete Section Confirmation Modal */}
-        <Modal
-          isOpen={isDeleteSectionModalOpen}
-          onClose={() => {
-            setIsDeleteSectionModalOpen(false);
-            setSectionToDelete(null);
-          }}
-          title="Delete Section"
-        >
-          {sectionToDelete && (
-            <div className="space-y-4">
-              <div className="text-center">
-                <AlertTriangle className="w-12 h-12 text-red-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Section?</h3>
-                <p className="text-gray-600 mb-4">
-                  Are you sure you want to delete the section "{sectionToDelete.title}"? 
-                  This will also delete all questions in this section. This action cannot be undone.
-                </p>
-              </div>
-              
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <h4 className="font-medium text-red-900 mb-2">This will delete:</h4>
-                <ul className="text-sm text-red-800 space-y-1">
-                  <li>• The section "{sectionToDelete.title}"</li>
-                  <li>• All {sectionToDelete.questionsCount} questions in this section</li>
-                  <li>• All answer options for these questions</li>
-                </ul>
-              </div>
-              
-              <div className="flex justify-end space-x-3 pt-4 border-t">
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setIsDeleteSectionModalOpen(false);
-                    setSectionToDelete(null);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={handleDeleteSection}
-                  className="flex items-center space-x-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Section</span>
-                </Button>
-              </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Upload CSV File</label>
+              <input
+                type="file"
+                accept=".csv"
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
             </div>
-          )}
+            
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <Button
+                variant="secondary"
+                onClick={() => setIsUploadModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button>
+                Upload Questions
+              </Button>
+            </div>
+          </div>
         </Modal>
       </div>
     </Layout>

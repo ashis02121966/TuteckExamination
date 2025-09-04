@@ -181,7 +181,8 @@ class UserApi extends BaseApi {
       }
 
       console.log('UserApi: Fetching users...');
-      const { data, error } = await supabase!
+      // Use service role to bypass RLS and get all users for admin
+      const { data, error } = await supabaseAdmin
         .from('users')
         .select(`
           *,
@@ -1410,8 +1411,8 @@ class EnumeratorDashboardApi extends BaseApi {
       const certificates = (certificatesData || []).map((cert: any) => ({
         id: cert.id,
         userId: cert.user_id,
-        user: {
-          id: cert.user.id || authUser.id,
+      // Get total users count - use service role to bypass RLS
+      const { count: totalUsers } = await supabaseAdmin
           name: cert.user.name,
           email: cert.user.email,
           role: cert.user.role
