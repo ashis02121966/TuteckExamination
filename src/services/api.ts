@@ -1818,8 +1818,8 @@ class ResultApi extends BaseApi {
         return { success: false, message: 'Database not configured', data: [] };
       }
 
-      const { data, error } = await supabase
-        .from('test_results')
+      // Fetch test results with proper joins
+      const { data: results, error } = await supabase
         .select(`
           *,
           user:users(
@@ -1846,11 +1846,7 @@ class ResultApi extends BaseApi {
           section_scores(
             section_id,
             section_title,
-            score,
-            total_questions,
-            correct_answers
-          )
-        `)
+        .select('*')
         .order('completed_at', { ascending: false });
 
       if (error) {
@@ -1858,7 +1854,84 @@ class ResultApi extends BaseApi {
         return { success: false, message: error.message, data: [] };
       }
 
-      // Transform the data to ensure proper structure
+      if (!results || results.length === 0) {
+        return { success: true, data: [], message: 'No test results found' };
+      }
+
+      // Get unique user IDs and survey IDs
+      const userIds = [...new Set(results.map(r => r.user_id))];
+      const surveyIds = [...new Set(results.map(r => r.survey_id))];
+
+      // Fetch users data
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, name, email, role_id, roles(name)')
+        .in('id', userIds);
+
+      if (userError) {
+        console.error('Error fetching users:', userError);
+      }
+
+      // Fetch surveys data
+      const { data: surveyData, error: surveyError } = await supabase
+        .from('surveys')
+        .select('id, title, max_attempts')
+        .in('id', surveyIds);
+
+      if (surveyError) {
+        console.error('Error fetching surveys:', surveyError);
+      }
+
+      // Create lookup maps
+      const userMap = new Map(userData?.map(u => [u.id, u]) || []);
+      const surveyMap = new Map(surveyData?.map(s => [s.id, s]) || []);
+
+      // Transform the data
+      const transformedResults = results.map(result => {
+        const user = userMap.get(result.user_id);
+        const survey = surveyMap.get(result.survey_id);
+
+        return {
+          id: result.id,
+          userId: result.user_id,
+          user: user ? {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: {
+              name: user.roles?.name || 'Unknown Role'
+            }
+          } : {
+            id: result.user_id,
+            name: 'Unknown User',
+            email: 'unknown@example.com',
+            role: { name: 'Unknown Role' }
+          },
+          surveyId: result.survey_id,
+          survey: survey ? {
+            id: survey.id,
+            title: survey.title,
+            maxAttempts: survey.max_attempts
+          } : {
+            id: result.survey_id,
+            title: 'Unknown Survey',
+            maxAttempts: 3
+          },
+          sessionId: result.session_id,
+          score: result.score,
+          totalQuestions: result.total_questions,
+          correctAnswers: result.correct_answers,
+          isPassed: result.is_passed,
+          timeSpent: result.time_spent,
+          attemptNumber: result.attempt_number,
+          grade: result.grade,
+          completedAt: new Date(result.completed_at),
+          certificateId: result.certificate_id,
+          sectionScores: [] // Will be populated separately if needed
+        };
+      });
+
+      return { success: true, data: transformedResults, message: 'Results fetched successfully' };
       const transformedData = (data || []).map(result => ({
         ...result,
         user: result.user || { name: 'Unknown User', email: 'unknown@example.com', role: { name: 'Unknown Role' } },
@@ -2039,6 +2112,7 @@ class ResultApi extends BaseApi {
           user:users(
             role:roles(name)
           )
+        )
         `);
 
       const performanceByRole = rolePerformance ? 
@@ -2457,3 +2531,6 @@ export const resultApi = new ResultApi();
 export const certificateApi = new CertificateApi();
 export const settingsApi = new SettingsApi();
 export const enumeratorApi = new EnumeratorApi();
+    }
+  }
+}
