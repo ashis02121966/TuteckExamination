@@ -9,9 +9,12 @@ const isSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseAnonKey && 
   supabaseServiceRoleKey &&
-  supabaseUrl.includes('.supabase.co') &&
-  supabaseAnonKey.length > 20 &&
-  supabaseServiceRoleKey.length > 20
+  supabaseUrl !== 'your_supabase_project_url' &&
+  supabaseAnonKey !== 'your_supabase_anon_key' &&
+  supabaseServiceRoleKey !== 'your_supabase_service_role_key' &&
+  supabaseUrl.trim().length > 10 &&
+  supabaseAnonKey.trim().length > 20 &&
+  supabaseServiceRoleKey.trim().length > 20
 );
 
 console.log('Supabase configuration check:', {
