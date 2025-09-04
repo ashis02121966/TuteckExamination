@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useCallback } from 'react';
 import { User } from '../types';
 import { authApi } from '../services/api';
 import { supabase, isDemoMode } from '../lib/supabase';
@@ -41,83 +42,83 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [passwordChangeError, setPasswordChangeError] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        // First check if we have a Supabase session
-        if (supabase) {
-          // Validate the current session by checking if the user is still valid
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
+  const initializeAuth = useCallback(async () => {
+    try {
+      // First check if we have a Supabase session
+      if (supabase) {
+        // Validate the current session by checking if the user is still valid
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (user && !userError) {
+          // We have a valid user, now get the session
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
           
-          if (user && !userError) {
-            // We have a valid user, now get the session
-            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (session && !sessionError) {
+          // We have a valid Supabase session, fetch user details from database
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select(`
+              *,
+              role:roles(*)
+            `)
+            .eq('id', user.id)
+            .maybeSingle();
+          
+          if (userData && !userError) {
+            const user = {
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role,
+              jurisdiction: userData.jurisdiction,
+              isActive: userData.is_active,
+              createdAt: new Date(userData.created_at),
+              updatedAt: new Date(userData.updated_at)
+            };
             
-            if (session && !sessionError) {
-            // We have a valid Supabase session, fetch user details from database
-            const { data: userData, error: userError } = await supabase
-              .from('users')
-              .select(`
-                *,
-                role:roles(*)
-              `)
-              .eq('id', user.id)
-              .maybeSingle();
-            
-            if (userData && !userError) {
-              const user = {
-                id: userData.id,
-                name: userData.name,
-                email: userData.email,
-                role: userData.role,
-                jurisdiction: userData.jurisdiction,
-                isActive: userData.is_active,
-                createdAt: new Date(userData.created_at),
-                updatedAt: new Date(userData.updated_at)
-              };
-              
-              setUser(user);
-              setIsLoading(false);
-              return;
-            } else {
-              // User data fetch failed, clear authentication state
-              await logout();
-              setUser(null);
-              setIsLoading(false);
-              return;
-            }
-            } else {
-              // Session is invalid, clear authentication state
-              await logout();
-              setUser(null);
-              setIsLoading(false);
-              return;
-            }
+            setUser(user);
+            setIsLoading(false);
+            return;
           } else {
-            // User validation failed (invalid/expired refresh token), clear authentication state
+            // User data fetch failed, clear authentication state
             await logout();
             setUser(null);
             setIsLoading(false);
             return;
           }
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        
-        // Clear authentication state on error
-        try {
+          } else {
+            // Session is invalid, clear authentication state
+            await logout();
+            setUser(null);
+            setIsLoading(false);
+            return;
+          }
+        } else {
+          // User validation failed (invalid/expired refresh token), clear authentication state
           await logout();
-        } catch (logoutError) {
-          // Ignore logout errors during cleanup
+          setUser(null);
+          setIsLoading(false);
+          return;
         }
-        setUser(null);
       }
+    } catch (error) {
+      console.error('Auth initialization error:', error);
       
-      setIsLoading(false);
-    };
+      // Clear authentication state on error
+      try {
+        await logout();
+      } catch (logoutError) {
+        // Ignore logout errors during cleanup
+      }
+      setUser(null);
+    }
     
-    initializeAuth();
+    setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   useEffect(() => {
     // Listen for auth state changes if Supabase is available
