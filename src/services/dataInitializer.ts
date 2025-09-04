@@ -163,13 +163,7 @@ export class DataInitializer {
 
   static async cleanupExistingData(supabaseClient: any, supabaseAdminClient: any) {
     try {
-        email_confirm: true, // Confirm email immediately
-      
       // Drop all existing policies first to avoid conflicts
-        },
-        app_metadata: {
-          role: user.role_id
-        }
       try {
         const { error: policyError } = await supabaseAdminClient.rpc('exec_sql', {
           sql: `
@@ -177,6 +171,14 @@ export class DataInitializer {
             DECLARE
                 r RECORD;
             BEGIN
+                FOR r IN (SELECT schemaname, tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+                    EXECUTE 'DROP POLICY IF EXISTS ' || quote_ident('policy_' || r.tablename) || ' ON ' || quote_ident(r.schemaname) || '.' || quote_ident(r.tablename);
+                END LOOP;
+            END $$;
+          `
+        });
+        
+        if (!policyError) {
           console.log('Existing policies dropped successfully');
         }
       } catch (error) {
@@ -229,8 +231,12 @@ export class DataInitializer {
       if (authUsers && authUsers.users) {
         for (const user of authUsers.users) {
           if (user.email && !user.email.includes('supabase')) {
-            console.log(`Deleting auth user: ${user.email}`);
+            console.log(\`Deleting auth user: ${user.email}`);
             await supabaseAdminClient.auth.admin.deleteUser(user.id);
+          }
+        }
+      }
+      
       console.log('Cleanup completed');
     } catch (error) {
       console.error('Cleanup error:', error);
@@ -253,11 +259,11 @@ export class DataInitializer {
         });
         
         if (error) {
-          console.error(`Verification failed for ${email}:`, error);
-          throw new Error(`User ${email} cannot authenticate: ${error.message}`);
+          console.error(\`Verification failed for ${email}:`, error);
+          throw new Error(\`User ${email} cannot authenticate: ${error.message}`);
         }
         
-        console.log(`✓ User ${email} can authenticate successfully`);
+        console.log(\`✓ User ${email} can authenticate successfully`);
         
         // Capture admin user ID for survey creation
         if (email === 'admin@esigma.com') {
@@ -267,7 +273,7 @@ export class DataInitializer {
         // Sign out after verification
         await supabase.auth.signOut();
       } catch (error) {
-        console.error(`Verification error for ${email}:`, error);
+        console.error(\`Verification error for ${email}:`, error);
         throw error;
       }
     }
@@ -429,26 +435,29 @@ export class DataInitializer {
       }
     ];
 
-    console.log(`Creating ${users.length} users...`);
+    console.log(\`Creating ${users.length} users...`);
     
     for (const user of users) {
       try {
-        console.log(`Processing user: ${user.email}`);
+        console.log(\`Processing user: ${user.email}`);
         
         // Create user in Supabase Auth
-        console.log(`Creating new auth user: ${user.email}`);
+        console.log(\`Creating new auth user: ${user.email}`);
         const { data: authData, error: authError } = await supabaseAdminClient.auth.admin.createUser({
           email: user.email,
           password: user.password,
-          email_confirm: false, // Confirm email immediately
+          email_confirm: true, // Confirm email immediately
           user_metadata: {
             name: user.name
+          },
+          app_metadata: {
+            role: user.role_id
           }
         });
         
         if (authError) {
-          console.error(`Failed to create auth user ${user.email}:`, authError);
-          throw new Error(`Auth creation failed for ${user.email}: ${authError.message}`);
+          console.error(\`Failed to create auth user ${user.email}:`, authError);
+          throw new Error(\`Auth creation failed for ${user.email}: ${authError.message}`);
         }
 
         // Manually confirm the user's email to bypass confirmation requirement
@@ -459,19 +468,19 @@ export class DataInitializer {
           );
           
           if (confirmError) {
-            console.error(`Failed to confirm email for ${user.email}:`, confirmError);
+            console.error(\`Failed to confirm email for ${user.email}:`, confirmError);
           } else {
-            console.log(`Email confirmed for ${user.email}`);
+            console.log(\`Email confirmed for ${user.email}`);
           }
         }
         
-        console.log(`Created auth user for ${user.email} with ID: ${authData.user.id}`);
+        console.log(\`Created auth user for ${user.email} with ID: ${authData.user.id}`);
         
         // Hash the password for the custom users table
         const hashedPassword = bcrypt.hashSync(user.password, 10);
         
         // Create user profile in custom users table
-        console.log(`Creating profile for ${user.email}`);
+        console.log(\`Creating profile for ${user.email}`);
         const { error: profileError } = await supabaseAdminClient
           .from('users')
           .insert({
@@ -491,13 +500,13 @@ export class DataInitializer {
           });
         
         if (profileError) {
-          console.error(`Failed to create user profile ${user.email}:`, profileError);
-          throw new Error(`Profile creation failed for ${user.email}: ${profileError.message}`);
+          console.error(\`Failed to create user profile ${user.email}:`, profileError);
+          throw new Error(\`Profile creation failed for ${user.email}: ${profileError.message}`);
         }
         
-        console.log(`Successfully created user: ${user.email}`);
+        console.log(\`Successfully created user: ${user.email}`);
       } catch (error) {
-        console.error(`Error creating user ${user.email}:`, error);
+        console.error(\`Error creating user ${user.email}:`, error);
         throw error; // Stop initialization on user creation failure
       }
     }
