@@ -605,7 +605,7 @@ export class DataInitializer {
         survey_id: '550e8400-e29b-41d4-a716-446655440021',
         title: 'Field Data Collection',
         description: 'Methods and procedures for collecting data in the field',
-        questions_count: 0,
+        questions_count: 2,
         section_order: 1
       },
       {
@@ -613,7 +613,7 @@ export class DataInitializer {
         survey_id: '550e8400-e29b-41d4-a716-446655440021',
         title: 'Data Quality Assurance',
         description: 'Ensuring accuracy and completeness of collected data',
-        questions_count: 0,
+        questions_count: 1,
         section_order: 2
       }
     ];
@@ -669,6 +669,36 @@ export class DataInitializer {
         points: 2,
         explanation: 'Strong passwords should be long, complex, unique, and not shared.',
         question_order: 1
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440044',
+        section_id: '550e8400-e29b-41d4-a716-446655440033',
+        text: 'What is the first step in field data collection?',
+        question_type: 'single_choice',
+        complexity: 'easy',
+        points: 1,
+        explanation: 'Planning and preparation are essential before starting data collection.',
+        question_order: 1
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440045',
+        section_id: '550e8400-e29b-41d4-a716-446655440033',
+        text: 'Which tools are commonly used for field data collection?',
+        question_type: 'multiple_choice',
+        complexity: 'medium',
+        points: 2,
+        explanation: 'Multiple tools can be used for effective field data collection.',
+        question_order: 2
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440046',
+        section_id: '550e8400-e29b-41d4-a716-446655440034',
+        text: 'What is the primary goal of data quality assurance?',
+        question_type: 'single_choice',
+        complexity: 'medium',
+        points: 1,
+        explanation: 'Data quality assurance ensures data accuracy and reliability.',
+        question_order: 1
       }
     ];
 
@@ -702,7 +732,25 @@ export class DataInitializer {
       { id: '550e8400-e29b-41d4-a716-446655440062', question_id: '550e8400-e29b-41d4-a716-446655440043', text: 'Use at least 8 characters', is_correct: true, option_order: 1 },
       { id: '550e8400-e29b-41d4-a716-446655440063', question_id: '550e8400-e29b-41d4-a716-446655440043', text: 'Include uppercase and lowercase letters', is_correct: true, option_order: 2 },
       { id: '550e8400-e29b-41d4-a716-446655440064', question_id: '550e8400-e29b-41d4-a716-446655440043', text: 'Share passwords with colleagues', is_correct: false, option_order: 3 },
-      { id: '550e8400-e29b-41d4-a716-446655440065', question_id: '550e8400-e29b-41d4-a716-446655440043', text: 'Use unique passwords for each account', is_correct: true, option_order: 4 }
+      { id: '550e8400-e29b-41d4-a716-446655440065', question_id: '550e8400-e29b-41d4-a716-446655440043', text: 'Use unique passwords for each account', is_correct: true, option_order: 4 },
+      
+      // Question 5 options (Field Data Collection)
+      { id: '550e8400-e29b-41d4-a716-446655440066', question_id: '550e8400-e29b-41d4-a716-446655440044', text: 'Planning and preparation', is_correct: true, option_order: 1 },
+      { id: '550e8400-e29b-41d4-a716-446655440067', question_id: '550e8400-e29b-41d4-a716-446655440044', text: 'Start collecting immediately', is_correct: false, option_order: 2 },
+      { id: '550e8400-e29b-41d4-a716-446655440068', question_id: '550e8400-e29b-41d4-a716-446655440044', text: 'Buy equipment first', is_correct: false, option_order: 3 },
+      { id: '550e8400-e29b-41d4-a716-446655440069', question_id: '550e8400-e29b-41d4-a716-446655440044', text: 'Hire staff first', is_correct: false, option_order: 4 },
+      
+      // Question 6 options (Field Data Collection Tools)
+      { id: '550e8400-e29b-41d4-a716-446655440070', question_id: '550e8400-e29b-41d4-a716-446655440045', text: 'Tablets and smartphones', is_correct: true, option_order: 1 },
+      { id: '550e8400-e29b-41d4-a716-446655440071', question_id: '550e8400-e29b-41d4-a716-446655440045', text: 'Paper forms', is_correct: true, option_order: 2 },
+      { id: '550e8400-e29b-41d4-a716-446655440072', question_id: '550e8400-e29b-41d4-a716-446655440045', text: 'GPS devices', is_correct: true, option_order: 3 },
+      { id: '550e8400-e29b-41d4-a716-446655440073', question_id: '550e8400-e29b-41d4-a716-446655440045', text: 'Gaming consoles', is_correct: false, option_order: 4 },
+      
+      // Question 7 options (Data Quality Assurance)
+      { id: '550e8400-e29b-41d4-a716-446655440074', question_id: '550e8400-e29b-41d4-a716-446655440046', text: 'Ensure data accuracy and reliability', is_correct: true, option_order: 1 },
+      { id: '550e8400-e29b-41d4-a716-446655440075', question_id: '550e8400-e29b-41d4-a716-446655440046', text: 'Collect as much data as possible', is_correct: false, option_order: 2 },
+      { id: '550e8400-e29b-41d4-a716-446655440076', question_id: '550e8400-e29b-41d4-a716-446655440046', text: 'Speed up data collection', is_correct: false, option_order: 3 },
+      { id: '550e8400-e29b-41d4-a716-446655440077', question_id: '550e8400-e29b-41d4-a716-446655440046', text: 'Reduce data collection costs', is_correct: false, option_order: 4 }
     ];
 
     const { error: optionsError } = await supabaseAdminClient
