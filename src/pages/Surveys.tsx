@@ -25,8 +25,14 @@ export function Surveys() {
     duration: 35,
     totalQuestions: 30,
     passingScore: 70,
-    maxAttempts: 3
+    maxAttempts: 3,
+    assignedZones: [] as string[],
+    assignedRegions: [] as string[]
   });
+
+  // Available zones and regions for assignment
+  const availableZones = ['North Zone', 'South Zone', 'East Zone', 'West Zone', 'Central Zone'];
+  const availableRegions = ['Delhi Region', 'Mumbai Region', 'Kolkata Region', 'Chennai Region', 'Bangalore Region', 'Hyderabad Region'];
 
   useEffect(() => {
     fetchSurveys();
@@ -55,7 +61,9 @@ export function Surveys() {
       const response = await surveyApi.createSurvey({
         ...formData,
         targetDate: new Date(formData.targetDate),
-        createdBy: user?.id || '550e8400-e29b-41d4-a716-446655440010'
+        createdBy: user?.id || '550e8400-e29b-41d4-a716-446655440010',
+        assignedZones: formData.assignedZones,
+        assignedRegions: formData.assignedRegions
       });
       if (response.success && response.data) {
         setSurveys([...surveys, response.data]);
@@ -82,7 +90,9 @@ export function Surveys() {
     try {
       const response = await surveyApi.updateSurvey(selectedSurvey.id, {
         ...formData,
-        targetDate: new Date(formData.targetDate)
+        targetDate: new Date(formData.targetDate),
+        assignedZones: formData.assignedZones,
+        assignedRegions: formData.assignedRegions
       });
       if (response.success && response.data) {
         setSurveys(surveys.map(survey => 
@@ -187,7 +197,9 @@ export function Surveys() {
       duration: survey.duration,
       totalQuestions: survey.totalQuestions,
       passingScore: survey.passingScore,
-      maxAttempts: survey.maxAttempts
+      maxAttempts: survey.maxAttempts,
+      assignedZones: survey.assignedZones || [],
+      assignedRegions: survey.assignedRegions || []
     });
     setIsEditModalOpen(true);
   };
@@ -200,9 +212,29 @@ export function Surveys() {
       duration: 35,
       totalQuestions: 30,
       passingScore: 70,
-      maxAttempts: 3
+      maxAttempts: 3,
+      assignedZones: [],
+      assignedRegions: []
     });
     setSelectedSurvey(null);
+  };
+
+  const handleZoneChange = (zone: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedZones: checked 
+        ? [...prev.assignedZones, zone]
+        : prev.assignedZones.filter(z => z !== zone)
+    }));
+  };
+
+  const handleRegionChange = (region: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedRegions: checked 
+        ? [...prev.assignedRegions, region]
+        : prev.assignedRegions.filter(r => r !== region)
+    }));
   };
 
   const filteredSurveys = surveys.filter(survey =>
@@ -418,6 +450,47 @@ export function Surveys() {
                 min="1"
               />
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Zones</label>
+              <div className="grid grid-cols-2 gap-2 p-3 border border-gray-300 rounded-md max-h-32 overflow-y-auto">
+                {availableZones.map((zone) => (
+                  <label key={zone} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.assignedZones.includes(zone)}
+                      onChange={(e) => handleZoneChange(zone, e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{zone}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to make available to all zones
+              </p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Regions</label>
+              <div className="grid grid-cols-2 gap-2 p-3 border border-gray-300 rounded-md max-h-32 overflow-y-auto">
+                {availableRegions.map((region) => (
+                  <label key={region} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.assignedRegions.includes(region)}
+                      onChange={(e) => handleRegionChange(region, e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{region}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to make available to all regions
+              </p>
+            </div>
+            
             <div className="flex justify-end space-x-3 pt-4">
               <Button
                 variant="secondary"
@@ -501,6 +574,47 @@ export function Surveys() {
                 min="1"
               />
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Zones</label>
+              <div className="grid grid-cols-2 gap-2 p-3 border border-gray-300 rounded-md max-h-32 overflow-y-auto">
+                {availableZones.map((zone) => (
+                  <label key={zone} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.assignedZones.includes(zone)}
+                      onChange={(e) => handleZoneChange(zone, e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{zone}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to make available to all zones
+              </p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Assigned Regions</label>
+              <div className="grid grid-cols-2 gap-2 p-3 border border-gray-300 rounded-md max-h-32 overflow-y-auto">
+                {availableRegions.map((region) => (
+                  <label key={region} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.assignedRegions.includes(region)}
+                      onChange={(e) => handleRegionChange(region, e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">{region}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to make available to all regions
+              </p>
+            </div>
+            
             <div className="flex justify-end space-x-3 pt-4">
               <Button
                 variant="secondary"
