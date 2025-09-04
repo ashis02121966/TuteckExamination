@@ -1942,7 +1942,12 @@ class ResultApi extends BaseApi {
       // Get performance by role
       const { data: rolePerformance, error: roleError } = await supabase
         .from('test_results')
-        .select(`is_passed, user:users(role:roles(name))`);
+        .select(`
+          is_passed,
+          user:users(
+            role:roles(name)
+          )
+        `);
 
       const performanceByRole = rolePerformance ? 
         Object.entries(
