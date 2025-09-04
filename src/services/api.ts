@@ -1157,6 +1157,106 @@ class TestApi extends BaseApi {
           .from('certificates')
           .insert({
             user_id: sessionData.user_id,
+            survey_id: sessionData.survey_id,
+            result_id: resultData.id,
+            certificate_number: certificateNumber,
+            certificate_status: 'active'
+          })
+          .select()
+          .single();
+
+        if (!certError && certData) {
+          certificateId = certData.id;
+          
+          // Update result with certificate ID
+          await supabase!
+            .from('test_results')
+            .update({ certificate_id: certificateId })
+            .eq('id', resultData.id);
+        }
+      }
+
+      const testResult: TestResult = {
+        id: resultData.id,
+        userId: resultData.user_id,
+        user: {} as User,
+        surveyId: resultData.survey_id,
+        survey: {} as Survey,
+        sessionId: resultData.session_id,
+        score: resultData.score,
+        totalQuestions: resultData.total_questions,
+        correctAnswers: resultData.correct_answers,
+        isPassed: resultData.is_passed,
+        timeSpent: resultData.time_spent,
+        attemptNumber: resultData.attempt_number,
+        sectionScores: sectionScores.map(score => ({
+          sectionId: score.section_id,
+          sectionTitle: score.section_title,
+          score: score.score,
+          totalQuestions: score.total_questions,
+          correctAnswers: score.correct_answers
+        })),
+        completedAt: new Date(resultData.completed_at),
+        certificateId: certificateId,
+        grade: resultData.grade
+      };
+
+      return { 
+        success: true, 
+        message: `Test submitted successfully! Score: ${finalScore.toFixed(1)}% (${isPassed ? 'Passed' : 'Failed'})`, 
+        data: testResult 
+      };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  private calculateGrade(score: number): string {
+    if (score >= 90) return 'A+';
+    if (score >= 80) return 'A';
+    if (score >= 70) return 'B';
+    if (score >= 60) return 'C';
+    if (score >= 50) return 'D';
+    return 'F';
+  }
+
+  async syncOfflineData(): Promise<ApiResponse<void>> {
+    try {
+      // Implementation for syncing offline data
+      return { success: true, message: 'Data synced successfully' };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async logSecurityViolation(sessionId: string, violation: string): Promise<ApiResponse<void>> {
+    try {
+      if (isDemoMode) {
+        console.log('Security violation (demo mode):', violation);
+        return { success: true, message: 'Security violation logged (demo mode)' };
+      }
+
+      await ActivityLogger.log({
+        activity_type: 'security_violation',
+        description: `Security violation during test: ${violation}`,
+        metadata: { session_id: sessionId, violation }
+      });
+
+      return { success: true, message: 'Security violation logged' };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+}
+
+// Dashboard APIs
+class DashboardApi extends BaseApi {
+  async getDashboardData(): Promise<ApiResponse<Dashboard>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Dashboard not available in demo mode' };
+      }
+
       if (!supabaseAdmin) {
         throw new Error('Supabase admin client not available');
       }
@@ -1310,80 +1410,8 @@ class TestApi extends BaseApi {
         performanceBySurvey,
         monthlyTrends
       };
-        certificateId: certificateId,
+
       return { success: true, data: dashboardData, message: 'Dashboard data retrieved successfully' };
-      };
-
-      return { 
-        success: true, 
-        message: `Test submitted successfully! Score: ${finalScore.toFixed(1)}% (${isPassed ? 'Passed' : 'Failed'})`, 
-        data: testResult 
-      };
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  private calculateGrade(score: number): string {
-    if (score >= 90) return 'A+';
-    if (score >= 80) return 'A';
-    if (score >= 70) return 'B';
-    if (score >= 60) return 'C';
-    if (score >= 50) return 'D';
-    return 'F';
-  }
-
-  async syncOfflineData(): Promise<ApiResponse<void>> {
-    try {
-      // Implementation for syncing offline data
-      return { success: true, message: 'Data synced successfully' };
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-
-  async logSecurityViolation(sessionId: string, violation: string): Promise<ApiResponse<void>> {
-    try {
-      if (isDemoMode) {
-        console.log('Security violation (demo mode):', violation);
-        return { success: true, message: 'Security violation logged (demo mode)' };
-      }
-
-      await ActivityLogger.log({
-        activity_type: 'security_violation',
-        description: `Security violation during test: ${violation}`,
-        metadata: { session_id: sessionId, violation }
-      });
-
-      return { success: true, message: 'Security violation logged' };
-    } catch (error) {
-      return this.handleError(error);
-    }
-  }
-}
-
-// Dashboard APIs
-class DashboardApi extends BaseApi {
-  async getDashboardData(): Promise<ApiResponse<Dashboard>> {
-    try {
-      if (isDemoMode) {
-        return { success: false, message: 'Dashboard not available in demo mode' };
-      }
-
-      // Mock dashboard data for now
-      const dashboardData: Dashboard = {
-        totalUsers: 0,
-        totalSurveys: 0,
-        totalAttempts: 0,
-        averageScore: 0,
-        passRate: 0,
-        recentActivity: [],
-        performanceByRole: [],
-        performanceBySurvey: [],
-        monthlyTrends: []
-      };
-
-      return { success: true, message: 'Dashboard data fetched successfully', data: dashboardData };
     } catch (error) {
       return this.handleError(error);
     }
