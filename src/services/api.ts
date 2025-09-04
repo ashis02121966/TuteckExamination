@@ -1136,7 +1136,9 @@ export const dashboardApi = {
             { name: 'Admin', value: 1, total: 1, percentage: 100 },
             { name: 'Supervisor', value: 1, total: 1, percentage: 85 },
             { name: 'Enumerator', value: 1, total: 1, percentage: 72 }
-      // Fetch real data from Supabase
+           ];
+        
+        // Fetch real data from Supabase
       const [usersResult, surveysResult, attemptsResult, resultsResult] = await Promise.all([
         supabase.from('users').select('id, role_id, roles(name)'),
         supabase.from('surveys').select('id, is_active'),
