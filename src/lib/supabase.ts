@@ -4,24 +4,38 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabaseServiceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 
-// Check if Supabase is configured
+// Debug logging to see what we're getting
+console.log('Environment variables debug:', {
+  VITE_SUPABASE_URL: supabaseUrl,
+  VITE_SUPABASE_ANON_KEY: supabaseAnonKey ? `${supabaseAnonKey.substring(0, 10)}...` : 'undefined',
+  VITE_SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey ? `${supabaseServiceRoleKey.substring(0, 10)}...` : 'undefined'
+});
+
+// More lenient configuration check
 const isSupabaseConfigured = Boolean(
   supabaseUrl && 
   supabaseAnonKey && 
   supabaseServiceRoleKey &&
+  supabaseUrl.trim() !== '' &&
+  supabaseAnonKey.trim() !== '' &&
+  supabaseServiceRoleKey.trim() !== '' &&
   supabaseUrl !== 'your_supabase_project_url' &&
   supabaseAnonKey !== 'your_supabase_anon_key' &&
   supabaseServiceRoleKey !== 'your_supabase_service_role_key' &&
-  supabaseUrl.trim().length > 10 &&
-  supabaseAnonKey.trim().length > 20 &&
-  supabaseServiceRoleKey.trim().length > 20
+  supabaseUrl.length > 10 &&
+  supabaseAnonKey.length > 20 &&
+  supabaseServiceRoleKey.length > 20
 );
 
-console.log('Supabase configuration check:', {
-  url: supabaseUrl,
-  anonKeyLength: supabaseAnonKey?.length,
-  serviceKeyLength: supabaseServiceRoleKey?.length,
-  isConfigured: isSupabaseConfigured
+console.log('Supabase configuration validation:', {
+  hasUrl: !!supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  hasServiceKey: !!supabaseServiceRoleKey,
+  urlLength: supabaseUrl?.length || 0,
+  anonKeyLength: supabaseAnonKey?.length || 0,
+  serviceKeyLength: supabaseServiceRoleKey?.length || 0,
+  isNotPlaceholder: supabaseUrl !== 'your_supabase_project_url',
+  finalResult: isSupabaseConfigured
 });
 
 // Create Supabase client (with fallback for demo mode)
@@ -44,11 +58,16 @@ export const supabaseAdmin = isSupabaseConfigured
       }
     })
   : null;
+
 // Export demo mode status
 export const isDemoMode = !isSupabaseConfigured;
 
 console.log(`Application mode: ${isDemoMode ? 'DEMO' : 'PRODUCTION'}`);
 console.log(`Supabase client: ${supabase ? 'READY' : 'NOT AVAILABLE'}`);
+
+if (isDemoMode) {
+  console.warn('Running in DEMO mode. Please check your .env file and ensure all Supabase environment variables are properly set.');
+}
 
 // Database types
 export interface Database {
