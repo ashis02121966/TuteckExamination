@@ -1854,7 +1854,6 @@ class ResultApi extends BaseApi {
         .order('completed_at', { ascending: false });
 
       if (error) {
-        const { data: fetchedData, error } = await query;
         return { success: false, message: error.message, data: [] };
       }
 
@@ -1863,27 +1862,7 @@ class ResultApi extends BaseApi {
       }
 
       // Get unique user IDs and survey IDs
-      // Transform the data to match the expected TestResult interface
-      const transformedData = (data || []).map(result => ({
-        ...result,
-        user: result.user ? {
-          id: result.user.id,
-          name: result.user.name,
-          email: result.user.email,
-          role: result.user.role ? {
-            id: result.user.role.id,
-            name: result.user.role.name,
-            level: result.user.role.level
-          } : null
-        } : null,
-        survey: result.survey ? {
-          id: result.survey.id,
-          title: result.survey.title,
-          maxAttempts: result.survey.max_attempts
-        } : null
-      }));
-
-      return { success: true, data: transformedData, message: 'Results fetched successfully' };
+      const userIds = [...new Set(results.map(r => r.user_id))];
       const surveyIds = [...new Set(results.map(r => r.survey_id))];
 
       // Fetch users data
@@ -1915,7 +1894,7 @@ class ResultApi extends BaseApi {
         const user = userMap.get(result.user_id);
         const survey = surveyMap.get(result.survey_id);
 
-        const transformedData = fetchedData?.map((result: any) => ({
+        return {
           id: result.id,
           userId: result.user_id,
           user: user ? {
@@ -1949,7 +1928,7 @@ class ResultApi extends BaseApi {
           timeSpent: result.time_spent,
           attemptNumber: result.attempt_number,
           grade: result.grade,
-        return { success: true, data: transformedData, message: 'Results fetched successfully' };
+          completedAt: new Date(result.completed_at),
           certificateId: result.certificate_id,
           sectionScores: [] // Will be populated separately if needed
         };
