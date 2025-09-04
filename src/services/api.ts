@@ -14,8 +14,22 @@ class BaseApi {
         data: undefined
       };
     }
-    }
-  },
+    
+    return {
+      success: true,
+      message: 'Operation completed successfully',
+      data: response.data
+    };
+  }
+
+  protected async handleError(error: any): Promise<ApiResponse<any>> {
+    console.error('API Exception:', error);
+    return {
+      success: false,
+      message: error.message || 'An unexpected error occurred',
+      data: undefined
+    };
+  }
 
   async getSurveySections(surveyId: string): Promise<ApiResponse<Section[]>> {
     try {
@@ -40,7 +54,7 @@ class BaseApi {
         data: []
       };
     }
-  },
+  }
 
   async createSection(sectionData: {
     surveyId: string;
@@ -76,7 +90,7 @@ class BaseApi {
         message: error instanceof Error ? error.message : 'Failed to create section' 
       };
     }
-  },
+  }
 
   async updateSection(sectionId: string, sectionData: {
     title: string;
@@ -112,7 +126,7 @@ class BaseApi {
         message: error instanceof Error ? error.message : 'Failed to update section' 
       };
     }
-  },
+  }
 
   async deleteSection(sectionId: string): Promise<ApiResponse<void>> {
     try {
@@ -135,21 +149,6 @@ class BaseApi {
         message: error instanceof Error ? error.message : 'Failed to delete section' 
       };
     }
-    
-    return {
-      success: true,
-      message: 'Operation completed successfully',
-      data: response.data
-    };
-  }
-
-  protected async handleError(error: any): Promise<ApiResponse<any>> {
-    console.error('API Exception:', error);
-    return {
-      success: false,
-      message: error.message || 'An unexpected error occurred',
-      data: undefined
-    };
   }
 }
 
