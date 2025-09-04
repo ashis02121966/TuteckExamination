@@ -181,7 +181,8 @@ class UserApi extends BaseApi {
       }
 
       console.log('UserApi: Fetching users...');
-      const { data, error } = await supabase!
+      // Use service role to bypass RLS and get all users for admin
+      const { data, error } = await supabaseAdmin
         .from('users')
         .select(`
           *,
@@ -1464,7 +1465,7 @@ class SupervisorDashboardApi extends BaseApi {
       }
 
       // Get total users count - use service role to bypass RLS
-      const { count: totalUsers } = await supabaseAdmin!
+      const { count: totalUsers } = await supabaseAdmin
         .from('users')
         .select('*', { count: 'exact', head: true });
 
