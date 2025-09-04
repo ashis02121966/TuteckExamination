@@ -1157,57 +1157,161 @@ class TestApi extends BaseApi {
           .from('certificates')
           .insert({
             user_id: sessionData.user_id,
-            survey_id: sessionData.survey_id,
-            result_id: resultData.id,
-            certificate_number: certificateNumber,
-            certificate_status: 'active'
-          })
-          .select()
-          .single();
-
-        if (!certError && certData) {
-          certificateId = certData.id;
-          
-          // Update result with certificate ID
-          await supabase!
-            .from('test_results')
-            .update({ certificate_id: certificateId })
-            .eq('id', resultData.id);
-        }
+      if (!supabaseAdmin) {
+        throw new Error('Supabase admin client not available');
       }
 
-      // Log test completion
-      await ActivityLogger.logTestComplete(
-        sessionData.user_id,
-        sessionData.survey_id,
-        sessionData.survey.title,
-        finalScore,
-        isPassed
-      );
+      // Get total users count
+      const { count: totalUsers, error: usersError } = await supabaseAdmin
+        .from('users')
+        .select('*', { count: 'exact', head: true });
 
-      const testResult: TestResult = {
-        id: resultData.id,
-        userId: resultData.user_id,
-        user: {} as User, // Will be populated by calling code if needed
-        surveyId: resultData.survey_id,
-        survey: {} as Survey, // Will be populated by calling code if needed
-        sessionId: resultData.session_id,
-        score: resultData.score,
-        totalQuestions: resultData.total_questions,
-        correctAnswers: resultData.correct_answers,
-        isPassed: resultData.is_passed,
-        timeSpent: resultData.time_spent,
-        attemptNumber: resultData.attempt_number,
-        sectionScores: sectionScores.map(s => ({
-          sectionId: s.section_id,
-          sectionTitle: s.section_title,
-          score: s.score,
-          totalQuestions: s.total_questions,
-          correctAnswers: s.correct_answers
-        })),
-        completedAt: new Date(resultData.completed_at),
+      if (usersError) {
+        console.error('Error fetching users count:', usersError);
+        throw usersError;
+      }
+
+      // Get total surveys count
+      const { count: totalSurveys, error: surveysError } = await supabaseAdmin
+        .from('surveys')
+        .select('*', { count: 'exact', head: true });
+
+      if (surveysError) {
+        console.error('Error fetching surveys count:', surveysError);
+        throw surveysError;
+      }
+
+      // Get total test attempts
+      const { count: totalAttempts, error: attemptsError } = await supabaseAdmin
+        .from('test_results')
+        .select('*', { count: 'exact', head: true });
+
+      if (attemptsError) {
+        console.error('Error fetching attempts count:', attemptsError);
+        throw attemptsError;
+      }
+
+      // Get average score and pass rate
+      const { data: resultsData, error: resultsError } = await supabaseAdmin
+        .from('test_results')
+        .select('score, is_passed');
+
+      if (resultsError) {
+        console.error('Error fetching results data:', resultsError);
+        throw resultsError;
+      }
+
+      const averageScore = resultsData && resultsData.length > 0
+        ? resultsData.reduce((sum, result) => sum + result.score, 0) / resultsData.length
+        : 0;
+
+      const passedCount = resultsData ? resultsData.filter(result => result.is_passed).length : 0;
+      const passRate = resultsData && resultsData.length > 0
+        ? (passedCount / resultsData.length) * 100
+        : 0;
+
+      // Get recent activity
+      const { data: activityData, error: activityError } = await supabaseAdmin
+        .from('activity_logs')
+        .select(`
+          id,
+          activity_type,
+          description,
+          user_id,
+          created_at,
+          users!inner(name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      const recentActivity = activityData ? activityData.map(activity => ({
+        id: activity.id,
+        type: activity.activity_type as any,
+        description: activity.description,
+        userId: activity.user_id || '',
+        userName: activity.users?.name || 'Unknown User',
+        timestamp: new Date(activity.created_at)
+      })) : [];
+
+      // Get performance by role
+      const { data: rolePerformanceData, error: rolePerformanceError } = await supabaseAdmin
+        .from('test_results')
+        .select(`
+          is_passed,
+          users!inner(
+            role_id,
+            roles!inner(name)
+          )
+        `);
+
+      const performanceByRole = rolePerformanceData ? 
+        Object.entries(
+          rolePerformanceData.reduce((acc, result) => {
+            const roleName = result.users?.roles?.name || 'Unknown';
+            if (!acc[roleName]) {
+              acc[roleName] = { total: 0, passed: 0 };
+            }
+            acc[roleName].total++;
+            if (result.is_passed) {
+              acc[roleName].passed++;
+            }
+            return acc;
+          }, {} as Record<string, { total: number; passed: number }>)
+        ).map(([name, data]) => ({
+          name,
+          value: data.passed,
+          total: data.total,
+          percentage: data.total > 0 ? (data.passed / data.total) * 100 : 0
+        })) : [];
+
+      // Get performance by survey
+      const { data: surveyPerformanceData, error: surveyPerformanceError } = await supabaseAdmin
+        .from('test_results')
+        .select(`
+          is_passed,
+          surveys!inner(title)
+        `);
+
+      const performanceBySurvey = surveyPerformanceData ?
+        Object.entries(
+          surveyPerformanceData.reduce((acc, result) => {
+            const surveyTitle = result.surveys?.title || 'Unknown';
+            if (!acc[surveyTitle]) {
+              acc[surveyTitle] = { total: 0, passed: 0 };
+            }
+            acc[surveyTitle].total++;
+            if (result.is_passed) {
+              acc[surveyTitle].passed++;
+            }
+            return acc;
+          }, {} as Record<string, { total: number; passed: number }>)
+        ).map(([name, data]) => ({
+          name,
+          value: data.passed,
+          total: data.total,
+          percentage: data.total > 0 ? (data.passed / data.total) * 100 : 0
+        })) : [];
+
+      // Mock monthly trends for now (would need more complex query for real data)
+      const monthlyTrends = [
+        { month: 'Jan', attempts: totalAttempts ? Math.floor(totalAttempts * 0.3) : 0, passed: passedCount ? Math.floor(passedCount * 0.3) : 0, failed: 0, passRate: passRate },
+        { month: 'Feb', attempts: totalAttempts ? Math.floor(totalAttempts * 0.35) : 0, passed: passedCount ? Math.floor(passedCount * 0.35) : 0, failed: 0, passRate: passRate },
+        { month: 'Mar', attempts: totalAttempts ? Math.floor(totalAttempts * 0.35) : 0, passed: passedCount ? Math.floor(passedCount * 0.35) : 0, failed: 0, passRate: passRate }
+      ];
+
+      const dashboardData: Dashboard = {
+        totalUsers: totalUsers || 0,
+        totalSurveys: totalSurveys || 0,
+        totalAttempts: totalAttempts || 0,
+        averageScore,
+        passRate,
+        recentActivity,
+        performanceByRole,
+        performanceBySurvey,
+        monthlyTrends
+      };
         certificateId: certificateId,
-        grade: resultData.grade
+      return { success: true, data: dashboardData, message: 'Dashboard data retrieved successfully' };
       };
 
       return { 
