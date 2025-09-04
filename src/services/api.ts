@@ -1139,8 +1139,21 @@ class TestApi extends BaseApi {
         throw new Error('Session not found');
       }
 
+      // Get survey sections to calculate total target questions
+      const { data: sections, error: sectionsError } = await supabase!
+        .from('survey_sections')
+        .select('questions_count')
+        .eq('survey_id', sessionData.survey_id);
+
+      if (sectionsError) {
+        throw new Error('Failed to fetch survey sections');
+      }
+
+      // Calculate total questions as sum of target questions from all sections
+      const totalQuestions = sections?.reduce((sum, section) => sum + section.questions_count, 0) || 0;
+
       // Get all questions for the survey with their correct answers
-      const { data: sectionsData, error: sectionsError } = await supabase!
+      const { data: sectionsData, error: sectionsDataError } = await supabase!
         .from('survey_sections')
         .select(`
           *,
@@ -1152,7 +1165,7 @@ class TestApi extends BaseApi {
         .eq('survey_id', sessionData.survey_id)
         .order('section_order', { ascending: true });
 
-      if (sectionsError) throw sectionsError;
+      if (sectionsDataError) throw sectionsDataError;
 
       // Flatten all questions from all sections
       const allQuestions = sectionsData.flatMap(section => 
@@ -1165,7 +1178,6 @@ class TestApi extends BaseApi {
 
       // Calculate score
       let correctAnswers = 0;
-      const totalQuestions = allQuestions.length;
       const sectionScores: any[] = [];
 
       // Group questions by section for section-wise scoring
