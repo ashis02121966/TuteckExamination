@@ -1833,7 +1833,24 @@ class ResultApi extends BaseApi {
       // Fetch test results with proper joins
       const { data: results, error } = await supabase
         .from('test_results')
-        .select('*')
+        .select(`
+          *,
+          user:users(
+            id,
+            name,
+            email,
+            role:roles(
+              id,
+              name,
+              level
+            )
+          ),
+          survey:surveys(
+            id,
+            title,
+            max_attempts
+          )
+        `)
         .order('completed_at', { ascending: false });
 
       if (error) {
@@ -1846,7 +1863,27 @@ class ResultApi extends BaseApi {
       }
 
       // Get unique user IDs and survey IDs
-      const userIds = [...new Set(results.map(r => r.user_id))];
+      // Transform the data to match the expected TestResult interface
+      const transformedData = (data || []).map(result => ({
+        ...result,
+        user: result.user ? {
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          role: result.user.role ? {
+            id: result.user.role.id,
+            name: result.user.role.name,
+            level: result.user.role.level
+          } : null
+        } : null,
+        survey: result.survey ? {
+          id: result.survey.id,
+          title: result.survey.title,
+          maxAttempts: result.survey.max_attempts
+        } : null
+      }));
+
+      return { success: true, data: transformedData, message: 'Results fetched successfully' };
       const surveyIds = [...new Set(results.map(r => r.survey_id))];
 
       // Fetch users data
