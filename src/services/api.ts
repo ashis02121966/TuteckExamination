@@ -1854,7 +1854,7 @@ class ResultApi extends BaseApi {
         .order('completed_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching results:', error);
+        const { data: fetchedData, error } = await query;
         return { success: false, message: error.message, data: [] };
       }
 
@@ -1915,7 +1915,7 @@ class ResultApi extends BaseApi {
         const user = userMap.get(result.user_id);
         const survey = surveyMap.get(result.survey_id);
 
-        return {
+        const transformedData = fetchedData?.map((result: any) => ({
           id: result.id,
           userId: result.user_id,
           user: user ? {
@@ -1949,7 +1949,7 @@ class ResultApi extends BaseApi {
           timeSpent: result.time_spent,
           attemptNumber: result.attempt_number,
           grade: result.grade,
-          completedAt: new Date(result.completed_at),
+        return { success: true, data: transformedData, message: 'Results fetched successfully' };
           certificateId: result.certificate_id,
           sectionScores: [] // Will be populated separately if needed
         };
