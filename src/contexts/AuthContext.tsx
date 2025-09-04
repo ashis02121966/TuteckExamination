@@ -166,8 +166,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('Setting user:', user);
         
         // Check if this is first login (password hasn't been changed) - only in production mode
-        const isFirstLogin = !isDemoMode && user.passwordChangedAt && 
-          new Date(user.passwordChangedAt).getTime() === new Date(user.createdAt).getTime();
+        // Disabled first login password change requirement
+        const isFirstLogin = false;
         
         setUser(user);
         localStorage.setItem('authToken', token);
