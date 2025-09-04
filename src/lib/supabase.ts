@@ -370,6 +370,102 @@ export interface Database {
           created_at?: string;
         };
       };
+      survey_sections: {
+        Row: {
+          id: string;
+          survey_id: string;
+          title: string;
+          description: string | null;
+          questions_count: number;
+          section_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          survey_id: string;
+          title: string;
+          description?: string | null;
+          questions_count?: number;
+          section_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          survey_id?: string;
+          title?: string;
+          description?: string | null;
+          questions_count?: number;
+          section_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      questions: {
+        Row: {
+          id: string;
+          section_id: string;
+          text: string;
+          question_type: string;
+          complexity: string;
+          points: number;
+          explanation: string | null;
+          question_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          section_id: string;
+          text: string;
+          question_type: string;
+          complexity?: string;
+          points?: number;
+          explanation?: string | null;
+          question_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          section_id?: string;
+          text?: string;
+          question_type?: string;
+          complexity?: string;
+          points?: number;
+          explanation?: string | null;
+          question_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      question_options: {
+        Row: {
+          id: string;
+          question_id: string;
+          text: string;
+          is_correct: boolean;
+          option_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          question_id: string;
+          text: string;
+          is_correct?: boolean;
+          option_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          question_id?: string;
+          text?: string;
+          is_correct?: boolean;
+          option_order?: number;
+          created_at?: string;
+        };
+      };
       system_settings: {
         Row: {
           id: string;
