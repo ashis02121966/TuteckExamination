@@ -163,10 +163,13 @@ export class DataInitializer {
 
   static async cleanupExistingData(supabaseClient: any, supabaseAdminClient: any) {
     try {
-      console.log('Cleaning up existing data...');
+        email_confirm: true, // Confirm email immediately
       
       // Drop all existing policies first to avoid conflicts
-      console.log('Dropping existing policies...');
+        },
+        app_metadata: {
+          role: user.role_id
+        }
       try {
         const { error: policyError } = await supabaseAdminClient.rpc('exec_sql', {
           sql: `
@@ -174,16 +177,6 @@ export class DataInitializer {
             DECLARE
                 r RECORD;
             BEGIN
-                FOR r IN (SELECT schemaname, tablename, policyname FROM pg_policies WHERE schemaname = 'public') LOOP
-                    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', r.policyname, r.schemaname, r.tablename);
-                END LOOP;
-            END $$;
-          `
-        });
-        
-        if (policyError) {
-          console.log('Could not drop policies via RPC, continuing with data cleanup...');
-        } else {
           console.log('Existing policies dropped successfully');
         }
       } catch (error) {
@@ -238,10 +231,6 @@ export class DataInitializer {
           if (user.email && !user.email.includes('supabase')) {
             console.log(`Deleting auth user: ${user.email}`);
             await supabaseAdminClient.auth.admin.deleteUser(user.id);
-          }
-        }
-      }
-      
       console.log('Cleanup completed');
     } catch (error) {
       console.error('Cleanup error:', error);
