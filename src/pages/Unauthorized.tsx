@@ -10,7 +10,12 @@ export function Unauthorized() {
   const { user } = useAuth();
 
   const handleGoBack = () => {
-    navigate(-1);
+    // Go back in history, but if there's no history, go to appropriate dashboard
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      handleGoHome();
+    }
   };
 
   const handleGoHome = () => {
@@ -20,7 +25,11 @@ export function Unauthorized() {
       return;
     }
 
-    switch (user.role.name.toLowerCase()) {
+    const roleName = user.role.name.toLowerCase();
+    console.log('Navigating home for role:', roleName);
+    
+    switch (roleName) {
+      case 'administrator':
       case 'admin':
         navigate('/dashboard');
         break;
@@ -37,7 +46,8 @@ export function Unauthorized() {
         navigate('/enumerator-dashboard');
         break;
       default:
-        navigate('/dashboard');
+        console.log('Unknown role, defaulting to root which will redirect appropriately');
+        navigate('/');
     }
   };
 
