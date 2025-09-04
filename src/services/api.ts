@@ -223,8 +223,10 @@ export const userApi = {
         role: {
           id: userData.role.id,
           name: userData.role.name,
+      console.log('DashboardAPI: Performance by role calculated:', performanceByRole.length, 'roles');
           description: userData.role.description,
           level: userData.role.level,
+      console.log('DashboardAPI: Fetching performance by survey...');
           createdAt: new Date(userData.role.created_at),
           updatedAt: new Date(userData.role.updated_at),
           isActive: userData.role.is_active,
@@ -237,12 +239,14 @@ export const userApi = {
         district: userData.district,
         employeeId: userData.employee_id,
         phoneNumber: userData.phone_number,
+      console.log('DashboardAPI: Performance by survey calculated:', performanceBySurvey.length, 'surveys');
         profileImage: userData.profile_image,
         parentId: userData.parent_id,
         lastLogin: userData.last_login ? new Date(userData.last_login) : undefined,
+      console.log('DashboardAPI: Monthly trends calculated:', monthlyTrends.length, 'months');
         passwordChangedAt: userData.password_changed_at ? new Date(userData.password_changed_at) : undefined,
         createdAt: new Date(userData.created_at),
-        updatedAt: new Date(userData.updated_at)
+        totalUsers: userCount || 0,
       }));
 
       console.log(`userApi.getUsers: Returning ${users.length} users`);
@@ -253,6 +257,14 @@ export const userApi = {
         data: users,
         count: count || users.length
       };
+      console.log('DashboardAPI: Final dashboard data:', {
+        totalUsers: dashboardData.totalUsers,
+        totalSurveys: dashboardData.totalSurveys,
+        totalAttempts: dashboardData.totalAttempts,
+        averageScore: dashboardData.averageScore,
+        passRate: dashboardData.passRate
+      });
+
     } catch (error) {
       console.error('userApi.getUsers: Exception:', error);
       return { 
@@ -675,53 +687,63 @@ export const dashboardApi = {
       }
 
       console.log('dashboardApi.getDashboardData: Fetching user count...');
-      // Get total users count
-      const { count: totalUsers, error: usersError } = await supabase!
+      // Get total users count efficiently
+      console.log('DashboardAPI: Fetching user count...');
+      const { count: userCount, error: usersError } = await supabase!
         .from('users')
         .select('*', { count: 'exact', head: true });
 
       if (usersError) {
         console.error('dashboardApi.getDashboardData: Users count error:', usersError);
-        return { success: false, message: `Failed to fetch user count: ${usersError.message}` };
+        return { success: false, data: null, message: `Failed to fetch user count: ${usersError.message}` };
       }
+
+      console.log('DashboardAPI: User count fetched:', userCount);
 
       console.log('dashboardApi.getDashboardData: User count:', totalUsers);
 
       console.log('dashboardApi.getDashboardData: Fetching survey count...');
       // Get total surveys count
+      console.log('DashboardAPI: Fetching survey count...');
       const { count: totalSurveys, error: surveysError } = await supabase!
         .from('surveys')
         .select('*', { count: 'exact', head: true });
 
       if (surveysError) {
         console.error('dashboardApi.getDashboardData: Surveys count error:', surveysError);
-        return { success: false, message: `Failed to fetch survey count: ${surveysError.message}` };
+        return { success: false, data: null, message: `Failed to fetch survey count: ${surveysError.message}` };
       }
+
+      console.log('DashboardAPI: Survey count fetched:', totalSurveys);
 
       console.log('dashboardApi.getDashboardData: Survey count:', totalSurveys);
 
       console.log('dashboardApi.getDashboardData: Fetching test results count...');
       // Get total test attempts count
+      console.log('DashboardAPI: Fetching test attempts count...');
       const { count: totalAttempts, error: attemptsError } = await supabase!
         .from('test_results')
         .select('*', { count: 'exact', head: true });
 
       if (attemptsError) {
         console.error('dashboardApi.getDashboardData: Attempts count error:', attemptsError);
-        return { success: false, message: `Failed to fetch attempts count: ${attemptsError.message}` };
+        return { success: false, data: null, message: `Failed to fetch attempts count: ${attemptsError.message}` };
       }
+
+      console.log('DashboardAPI: Test attempts count fetched:', totalAttempts);
 
       console.log('dashboardApi.getDashboardData: Attempts count:', totalAttempts);
 
       console.log('dashboardApi.getDashboardData: Fetching test results for calculations...');
       // Get test results for calculations
+      console.log('DashboardAPI: Fetching test results for calculations...');
       const { data: testResults, error: resultsError } = await supabase!
         .from('test_results')
         .select('score, is_passed');
 
       if (resultsError) {
         console.error('dashboardApi.getDashboardData: Results fetch error:', resultsError);
-        return { success: false, message: `Failed to fetch test results: ${resultsError.message}` };
+        return { success: false, data: null, message: `Failed to fetch results: ${resultsError.message}` };
       }
 
       console.log('dashboardApi.getDashboardData: Test results count:', testResults?.length || 0);
@@ -1197,7 +1219,10 @@ export const testApi = {
     try {
       if (isDemoMode) {
         console.log('Security violation logged (Demo Mode):', violation);
+      console.log('DashboardAPI: Calculated averageScore:', averageScore, 'passRate:', passRate);
+
         return { success: true, message: 'Security violation logged (Demo Mode)' };
+      console.log('DashboardAPI: Fetching recent activity...');
       }
 
       await ActivityLogger.log({
@@ -1221,7 +1246,10 @@ export const resultApi = {
       if (isDemoMode) {
         return { success: true, message: 'Results fetched successfully (Demo Mode)', data: [] };
       }
+      console.log('DashboardAPI: Recent activity fetched:', recentActivity.length, 'items');
 
+
+      console.log('DashboardAPI: Fetching performance by role...');
       const { data, error } = await supabase!
         .from('test_results')
         .select(`
