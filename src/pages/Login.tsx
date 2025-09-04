@@ -77,6 +77,8 @@ export function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email address"
+             autoComplete="off"
+             autoFocus={false}
               required
             />
 
@@ -86,6 +88,7 @@ export function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
+             autoComplete="new-password"
               required
             />
 
