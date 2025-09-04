@@ -131,29 +131,29 @@ export function ProtectedRoutes() {
         </RoleBasedRoute>
       } />
       <Route path="/available-tests" element={
-        <RoleBasedRoute requiredRoles={['Enumerator']}>
+        <RoleBasedRoute requiredRoles={['Enumerator', 'FresherBScBCA']}>
           <AvailableTests />
         </RoleBasedRoute>
       } />
       <Route path="/my-results" element={
-        <RoleBasedRoute requiredRoles={['Enumerator']}>
+        <RoleBasedRoute requiredRoles={['Enumerator', 'FresherBScBCA']}>
           <MyResults />
         </RoleBasedRoute>
       } />
       <Route path="/my-certificates" element={
-        <RoleBasedRoute requiredRoles={['Enumerator']}>
+        <RoleBasedRoute requiredRoles={['Enumerator', 'FresherBScBCA']}>
           <MyCertificates />
         </RoleBasedRoute>
       } />
       <Route path="/test-schedule" element={
-        <RoleBasedRoute requiredRoles={['Enumerator']}>
+        <RoleBasedRoute requiredRoles={['Enumerator', 'FresherBScBCA']}>
           <TestSchedule />
         </RoleBasedRoute>
       } />
 
       {/* Test Interface */}
       <Route path="/test/:sessionId" element={
-        <RoleBasedRoute requiredRoles={['Enumerator']}>
+        <RoleBasedRoute requiredRoles={['Enumerator', 'FresherBScBCA']}>
           <TestInterface />
         </RoleBasedRoute>
       } />
