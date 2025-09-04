@@ -8,7 +8,7 @@ import { FileText, AlertCircle, Users, Building, UserCheck, User } from 'lucide-
 import { isDemoMode } from '../lib/supabase';
 
 export function Login() {
-  const { login, isAuthenticated } = useAuth();
+  const { login, logout, isAuthenticated } = useAuth();
   const [email, setEmail] = useState('admin@esigma.com');
   const [password, setPassword] = useState('password123');
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +36,7 @@ export function Login() {
       
       if (result.success) {
         setError(''); // Clear any previous errors
+        logout(); // Clear any stale session tokens
         alert(`Database initialized successfully! ${result.message}\n\nYou can now login with the demo credentials:\n- admin@esigma.com / password123\n- enumerator@esigma.com / password123`);
       } else {
         console.error('Database initialization failed:', result);
