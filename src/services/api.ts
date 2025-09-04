@@ -1829,10 +1829,14 @@ class ResultApi extends BaseApi {
             jurisdiction,
               id,
               name,
-              email,
+            *,
             role:roles(
               id,
               name,
+              email,
+              id,
+              name,
+              id,
               id,
               description,
               level
