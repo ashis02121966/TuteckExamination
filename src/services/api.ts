@@ -221,6 +221,19 @@ export const authApi = {
             description: violation,
             metadata: { session_id: sessionId, timestamp: new Date().toISOString() }
           });
+        try {
+          await ActivityLogger.log({
+            activity_type: 'security_violation',
+            description: `Security violation: ${violation}`,
+            metadata: { session_id: sessionId, timestamp: new Date().toISOString() }
+          });
+        } catch (error) {
+          console.error('Failed to log security violation:', error);
+        }
+      } else {
+        console.log('Demo mode: Security violation logged locally:', violation);
+      }
+    },
       } catch (error) {
         console.error('Failed to log security violation:', error);
       }
