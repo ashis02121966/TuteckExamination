@@ -791,9 +791,9 @@ export const surveyApi = {
 
 // Question API
 export const questionApi = {
-  async getQuestions(sectionId?: string) {
+  async getQuestions(surveyId?: string, sectionId?: string) {
     try {
-      console.log('QuestionAPI: Fetching questions...', sectionId ? `for section ${sectionId}` : 'all questions');
+      console.log('QuestionAPI: Fetching questions...', sectionId ? `for section ${sectionId}` : surveyId ? `for survey ${surveyId}` : 'all questions');
       
       if (isDemoMode) {
         console.log('QuestionAPI: Demo mode - returning empty questions');
@@ -815,6 +815,9 @@ export const questionApi = {
 
       if (sectionId) {
         query = query.eq('section_id', sectionId);
+      } else if (surveyId) {
+        // If only surveyId is provided, get questions for all sections of that survey
+        query = query.eq('section.survey_id', surveyId);
       }
 
       const { data: questions, error } = await query;
@@ -886,6 +889,43 @@ export const questionApi = {
     } catch (error) {
       console.error('QuestionAPI: Create question error:', error);
       return { success: false, message: 'Failed to create question' };
+    }
+  },
+
+  async downloadTemplate() {
+    try {
+      // Create a CSV template for question upload
+      const csvContent = `Question Text,Question Type,Complexity,Option A,Option B,Option C,Option D,Correct Answer,Points,Explanation,Survey ID,Survey Title,Section ID,Section Title
+"What is the primary function of an operating system?",single_choice,easy,"To manage hardware and software resources","To create documents","To browse the internet","To play games",A,1,"An operating system manages all hardware and software resources of a computer.",550e8400-e29b-41d4-a716-446655440020,"Digital Literacy Assessment",550e8400-e29b-41d4-a716-446655440030,"Basic Computer Skills"
+"Which of the following are input devices?",multiple_choice,medium,"Keyboard","Mouse","Monitor","Microphone","A,B,D",2,"Input devices allow users to provide data to the computer. Monitor is an output device.",550e8400-e29b-41d4-a716-446655440020,"Digital Literacy Assessment",550e8400-e29b-41d4-a716-446655440030,"Basic Computer Skills"`;
+      
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      return blob;
+    } catch (error) {
+      console.error('QuestionAPI: Download template error:', error);
+      throw error;
+    }
+  },
+
+  async uploadQuestions(surveyId: string, file: File) {
+    try {
+      if (isDemoMode) {
+        return { 
+          success: true, 
+          data: { questionsAdded: 0, questionsSkipped: 0, errors: [] }, 
+          message: 'Demo questions uploaded' 
+        };
+      }
+
+      // For now, return a mock response
+      return { 
+        success: true, 
+        data: { questionsAdded: 0, questionsSkipped: 0, errors: ['Upload functionality not yet implemented'] }, 
+        message: 'Upload functionality coming soon' 
+      };
+    } catch (error) {
+      console.error('QuestionAPI: Upload error:', error);
+      return { success: false, message: 'Failed to upload questions' };
     }
   },
 
