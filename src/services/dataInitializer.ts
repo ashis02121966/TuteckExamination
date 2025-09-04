@@ -872,7 +872,11 @@ export class DataInitializer {
             ON section_scores
             FOR INSERT
             TO authenticated
-            WITH CHECK (true);
+            WITH CHECK (EXISTS (
+              SELECT 1 FROM test_results 
+              WHERE test_results.id = section_scores.result_id 
+              AND test_results.user_id = auth.uid()
+            ));
           
           -- Test Sessions policies
           ALTER TABLE test_sessions ENABLE ROW LEVEL SECURITY;
