@@ -1367,6 +1367,125 @@ export const settingsApi = {
   }
 };
 
+// Question API
+export const questionApi = {
+  async getQuestions(sectionId?: string) {
+    try {
+      if (isDemoMode) {
+        return { success: true, message: 'Questions fetched successfully (Demo Mode)', data: [] };
+      }
+
+      let query = supabase!
+        .from('questions')
+        .select(`
+          *,
+          options:question_options(*)
+        `)
+        .order('question_order');
+
+      if (sectionId) {
+        query = query.eq('section_id', sectionId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        return { success: false, message: error.message, data: [] };
+      }
+
+      return { success: true, message: 'Questions fetched successfully', data };
+    } catch (error) {
+      console.error('Get questions error:', error);
+      return { success: false, message: 'Failed to fetch questions', data: [] };
+    }
+  },
+
+  async createQuestion(questionData: any) {
+    try {
+      if (isDemoMode) {
+        return { success: true, message: 'Question created successfully (Demo Mode)', data: null };
+      }
+
+      const { data, error } = await supabase!
+        .from('questions')
+        .insert({
+          section_id: questionData.sectionId,
+          text: questionData.text,
+          question_type: questionData.questionType,
+          complexity: questionData.complexity,
+          points: questionData.points,
+          explanation: questionData.explanation,
+          question_order: questionData.questionOrder
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false, message: error.message };
+      }
+
+      return { success: true, message: 'Question created successfully', data };
+    } catch (error) {
+      console.error('Create question error:', error);
+      return { success: false, message: 'Failed to create question' };
+    }
+  },
+
+  async updateQuestion(questionId: string, questionData: any) {
+    try {
+      if (isDemoMode) {
+        return { success: true, message: 'Question updated successfully (Demo Mode)', data: null };
+      }
+
+      const { data, error } = await supabase!
+        .from('questions')
+        .update({
+          text: questionData.text,
+          question_type: questionData.questionType,
+          complexity: questionData.complexity,
+          points: questionData.points,
+          explanation: questionData.explanation,
+          question_order: questionData.questionOrder,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', questionId)
+        .select()
+        .single();
+
+      if (error) {
+        return { success: false, message: error.message };
+      }
+
+      return { success: true, message: 'Question updated successfully', data };
+    } catch (error) {
+      console.error('Update question error:', error);
+      return { success: false, message: 'Failed to update question' };
+    }
+  },
+
+  async deleteQuestion(questionId: string) {
+    try {
+      if (isDemoMode) {
+        return { success: true, message: 'Question deleted successfully (Demo Mode)' };
+      }
+
+      const { error } = await supabase!
+        .from('questions')
+        .delete()
+        .eq('id', questionId);
+
+      if (error) {
+        return { success: false, message: error.message };
+      }
+
+      return { success: true, message: 'Question deleted successfully' };
+    } catch (error) {
+      console.error('Delete question error:', error);
+      return { success: false, message: 'Failed to delete question' };
+    }
+  }
+};
+
 // Enumerator Dashboard API
 export const enumeratorDashboardApi = {
   async getDashboardData() {
