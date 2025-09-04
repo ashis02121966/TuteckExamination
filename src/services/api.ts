@@ -214,6 +214,28 @@ export const authApi = {
       const { data: { user } } = await supabase!.auth.getUser();
       if (user) {
         await supabase!
+          .from('users')
+          .update({ password_changed_at: new Date().toISOString() })
+          .eq('id', user.id);
+      }
+
+      return {
+        success: true,
+        message: 'Password changed successfully'
+      };
+    } catch (error) {
+      console.error('Password change error:', error);
+      return {
+        success: false,
+        message: 'Failed to change password'
+      };
+    }
+  },
+
+  async logSecurityViolation(userId: string, sessionId: string, violation: string): Promise<void> {
+    try {
+      if (!isDemoMode) {
+        await supabase!
           .from('activity_logs')
           .insert({
             user_id: userId,
@@ -233,28 +255,8 @@ export const authApi = {
       } else {
         console.log('Demo mode: Security violation logged locally:', violation);
       }
-    },
-      } catch (error) {
-        console.error('Failed to log security violation:', error);
-      }
-    }
-  }
-};
-
-export const questionApi = {
-          .eq('id', user.id);
-      }
-
-      return {
-        success: true,
-        message: 'Password changed successfully'
-      };
     } catch (error) {
-      console.error('Password change error:', error);
-      return {
-        success: false,
-        message: 'Failed to change password'
-      };
+      console.error('Failed to log security violation:', error);
     }
   }
 };
@@ -1357,10 +1359,7 @@ export const testApi = {
 
       return {
         success: true,
-        message: 'Answ
-    }
-  }
-}er saved successfully'
+        message: 'Answer saved successfully'
       };
     } catch (error) {
       console.error('Failed to save answer:', error);
@@ -1803,153 +1802,6 @@ export const certificateApi = {
 
       // Update download count
       await supabase!
-
-export const questionApi = {
-  getQuestions: async (): Promise<ApiResponse<Question[]>> => {
-    if (isDemoMode) {
-      return { success: true, data: [], message: 'Demo mode - no questions available' };
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('questions')
-        .select(`
-          *,
-          section:survey_sections(*),
-          options:question_options(*)
-        `)
-        .order('question_order');
-
-      if (error) throw error;
-
-      const questions: Question[] = (data || []).map((q: any) => ({
-        id: q.id,
-        sectionId: q.section_id,
-        text: q.text,
-        type: q.question_type as 'multiple_choice' | 'single_choice',
-        complexity: q.complexity as 'easy' | 'medium' | 'hard',
-        options: (q.options || []).map((opt: any) => ({
-          id: opt.id,
-          text: opt.text,
-          isCorrect: opt.is_correct
-        })),
-        correctAnswers: (q.options || []).filter((opt: any) => opt.is_correct).map((opt: any) => opt.id),
-        explanation: q.explanation,
-        points: q.points,
-        order: q.question_order,
-        createdAt: new Date(q.created_at),
-        updatedAt: new Date(q.updated_at)
-      }));
-
-      return { success: true, data: questions, message: 'Questions fetched successfully' };
-    } catch (error) {
-      console.error('Error fetching questions:', error);
-      return { success: false, data: [], message: 'Failed to fetch questions' };
-    }
-  },
-
-  createQuestion: async (questionData: any): Promise<ApiResponse<Question>> => {
-    if (isDemoMode) {
-      return { success: false, message: 'Demo mode - question creation not available' };
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('questions')
-        .insert({
-          section_id: questionData.sectionId,
-          text: questionData.text,
-          question_type: questionData.type,
-          complexity: questionData.complexity,
-          points: questionData.points,
-          explanation: questionData.explanation,
-          question_order: questionData.order
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Create question options
-      if (questionData.options && questionData.options.length > 0) {
-        const optionsData = questionData.options.map((option: any, index: number) => ({
-          question_id: data.id,
-          text: option.text,
-          is_correct: option.isCorrect,
-          option_order: index + 1
-        }));
-
-        const { error: optionsError } = await supabase
-          .from('question_options')
-          .insert(optionsData);
-
-        if (optionsError) throw optionsError;
-      }
-
-      return { success: true, data: data as any, message: 'Question created successfully' };
-    } catch (error) {
-      console.error('Error creating question:', error);
-      return { success: false, message: 'Failed to create question' };
-    }
-  },
-
-  updateQuestion: async (questionId: string, questionData: any): Promise<ApiResponse<Question>> => {
-    if (isDemoMode) {
-      return { success: false, message: 'Demo mode - question updates not available' };
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('questions')
-        .update({
-          text: questionData.text,
-          question_type: questionData.type,
-          complexity: questionData.complexity,
-          points: questionData.points,
-          explanation: questionData.explanation,
-          question_order: questionData.order
-        })
-        .eq('id', questionId)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return { success: true, data: data as any, message: 'Question updated successfully' };
-    } catch (error) {
-      console.error('Error updating question:', error);
-      return { success: false, message: 'Failed to update question' };
-    }
-  },
-
-  deleteQuestion: async (questionId: string): Promise<ApiResponse<void>> => {
-    if (isDemoMode) {
-      return { success: false, message: 'Demo mode - question deletion not available' };
-    }
-
-    try {
-      const { error } = await supabase
-        .from('questions')
-        .delete()
-        .eq('id', questionId);
-
-      if (error) throw error;
-
-      return { success: true, message: 'Question deleted successfully' };
-    } catch (error) {
-      console.error('Error deleting question:', error);
-      return { success: false, message: 'Failed to delete question' };
-    }
-  }
-};
-
-// Question API (alias for survey API for backward compatibility)
-export const questionApi = {
-  getQuestions: surveyApi.getSurveys,
-  createQuestion: surveyApi.createSurvey,
-  updateQuestion: surveyApi.updateSurvey,
-  deleteQuestion: surveyApi.deleteSurvey
-};
         .from('certificates')
         .update({ download_count: supabase!.sql`download_count + 1` })
         .eq('id', certificateId);
@@ -2578,6 +2430,145 @@ export const enumeratorApi = {
         success: false,
         message: 'Failed to fetch enumerator status'
       };
+    }
+  }
+};
+
+export const questionApi = {
+  getQuestions: async (): Promise<ApiResponse<Question[]>> => {
+    if (isDemoMode) {
+      return { success: true, data: [], message: 'Demo mode - no questions available' };
+    }
+
+    try {
+      const { data, error } = await supabase!
+        .from('questions')
+        .select(`
+          *,
+          section:survey_sections(*),
+          options:question_options(*)
+        `)
+        .order('question_order');
+
+      if (error) throw error;
+
+      const questions: Question[] = (data || []).map((q: any) => ({
+        id: q.id,
+        sectionId: q.section_id,
+        text: q.text,
+        type: q.question_type as 'multiple_choice' | 'single_choice',
+        complexity: q.complexity as 'easy' | 'medium' | 'hard',
+        options: (q.options || []).map((opt: any) => ({
+          id: opt.id,
+          text: opt.text,
+          isCorrect: opt.is_correct
+        })),
+        correctAnswers: (q.options || []).filter((opt: any) => opt.is_correct).map((opt: any) => opt.id),
+        explanation: q.explanation,
+        points: q.points,
+        order: q.question_order,
+        createdAt: new Date(q.created_at),
+        updatedAt: new Date(q.updated_at)
+      }));
+
+      return { success: true, data: questions, message: 'Questions fetched successfully' };
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+      return { success: false, data: [], message: 'Failed to fetch questions' };
+    }
+  },
+
+  createQuestion: async (questionData: any): Promise<ApiResponse<Question>> => {
+    if (isDemoMode) {
+      return { success: false, message: 'Demo mode - question creation not available' };
+    }
+
+    try {
+      const { data, error } = await supabase!
+        .from('questions')
+        .insert({
+          section_id: questionData.sectionId,
+          text: questionData.text,
+          question_type: questionData.type,
+          complexity: questionData.complexity,
+          points: questionData.points,
+          explanation: questionData.explanation,
+          question_order: questionData.order
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Create question options
+      if (questionData.options && questionData.options.length > 0) {
+        const optionsData = questionData.options.map((option: any, index: number) => ({
+          question_id: data.id,
+          text: option.text,
+          is_correct: option.isCorrect,
+          option_order: index + 1
+        }));
+
+        const { error: optionsError } = await supabase!
+          .from('question_options')
+          .insert(optionsData);
+
+        if (optionsError) throw optionsError;
+      }
+
+      return { success: true, data: data as any, message: 'Question created successfully' };
+    } catch (error) {
+      console.error('Error creating question:', error);
+      return { success: false, message: 'Failed to create question' };
+    }
+  },
+
+  updateQuestion: async (questionId: string, questionData: any): Promise<ApiResponse<Question>> => {
+    if (isDemoMode) {
+      return { success: false, message: 'Demo mode - question updates not available' };
+    }
+
+    try {
+      const { data, error } = await supabase!
+        .from('questions')
+        .update({
+          text: questionData.text,
+          question_type: questionData.type,
+          complexity: questionData.complexity,
+          points: questionData.points,
+          explanation: questionData.explanation,
+          question_order: questionData.order
+        })
+        .eq('id', questionId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return { success: true, data: data as any, message: 'Question updated successfully' };
+    } catch (error) {
+      console.error('Error updating question:', error);
+      return { success: false, message: 'Failed to update question' };
+    }
+  },
+
+  deleteQuestion: async (questionId: string): Promise<ApiResponse<void>> => {
+    if (isDemoMode) {
+      return { success: false, message: 'Demo mode - question deletion not available' };
+    }
+
+    try {
+      const { error } = await supabase!
+        .from('questions')
+        .delete()
+        .eq('id', questionId);
+
+      if (error) throw error;
+
+      return { success: true, message: 'Question deleted successfully' };
+    } catch (error) {
+      console.error('Error deleting question:', error);
+      return { success: false, message: 'Failed to delete question' };
     }
   }
 };
