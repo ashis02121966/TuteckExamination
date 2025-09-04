@@ -322,7 +322,7 @@ export function TestInterface() {
         const questionsResponse = await questionApi.getQuestions(section.id);
         if (questionsResponse.success && questionsResponse.data) {
           const sectionQuestions = questionsResponse.data;
-          const questionsToSelect = Math.min(section.questionsCount, sectionQuestions.length);
+          const questionsToSelect = Math.min(section.questions_count, sectionQuestions.length);
           
           // Randomly select questions from this section
           const shuffled = [...sectionQuestions].sort(() => 0.5 - Math.random());
@@ -331,7 +331,7 @@ export function TestInterface() {
           // Add section info to questions for proper ordering
           const questionsWithSection = selectedQuestions.map((q, index) => ({
             ...q,
-            order: (section.order * 1000) + index // Section order * 1000 + question index
+            order: (section.section_order * 1000) + index // Section order * 1000 + question index
           }));
           
           allSelectedQuestions = [...allSelectedQuestions, ...questionsWithSection];

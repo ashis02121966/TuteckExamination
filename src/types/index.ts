@@ -66,8 +66,8 @@ export interface Section {
   surveyId: string;
   title: string;
   description: string;
-  questionsCount: number;
-  order: number;
+  questions_count: number;
+  section_order: number;
   questions: Question[];
 }
 
