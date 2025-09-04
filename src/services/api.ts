@@ -14,6 +14,7 @@ class BaseApi {
         data: undefined
       };
     }
+    }
   },
 
   async getSurveySections(surveyId: string): Promise<ApiResponse<Section[]>> {
