@@ -264,6 +264,63 @@ export const authApi = {
 // User API
 export const userApi = {
   async getUsers(): Promise<ApiResponse<User[]>> {
+    if (isDemoMode) {
+      return { success: true, data: [], message: 'Demo mode - no users available' };
+    }
+
+    try {
+      const { data, error } = await supabase!
+        .from('users')
+        .select(`
+          *,
+          role:roles(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const users: User[] = (data || []).map((user: any) => ({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        roleId: user.role_id,
+        role: {
+          id: user.role.id,
+          name: user.role.name,
+          description: user.role.description,
+          level: user.role.level,
+          isActive: user.role.is_active,
+          createdAt: new Date(user.role.created_at),
+          updatedAt: new Date(user.role.updated_at),
+          menuAccess: user.role.menu_access
+        },
+        isActive: user.is_active,
+        jurisdiction: user.jurisdiction,
+        zone: user.zone,
+        region: user.region,
+        district: user.district,
+        employeeId: user.employee_id,
+        phoneNumber: user.phone_number,
+        profileImage: user.profile_image,
+        parentId: user.parent_id,
+        lastLogin: user.last_login ? new Date(user.last_login) : undefined,
+        passwordChangedAt: user.password_changed_at ? new Date(user.password_changed_at) : undefined,
+        createdAt: new Date(user.created_at),
+        updatedAt: new Date(user.updated_at)
+      }));
+
+      return { success: true, data: users, message: 'Users fetched successfully' };
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+      return { 
+        success: false, 
+        data: [], 
+        message: error instanceof Error ? error.message : 'Failed to fetch users' 
+      };
+    }
+  },
+
+  async getUsers(): Promise<ApiResponse<User[]>> {
     try {
       if (isDemoMode) {
         return {
