@@ -528,8 +528,8 @@ export class DataInitializer {
         passing_score: 70,
         max_attempts: 3,
         is_active: true,
-        assigned_zones: ['North Zone', 'South Zone'],
-        assigned_regions: ['Delhi Region', 'Mumbai Region'],
+        assigned_zones: ['North Zone', 'South Zone', 'East Zone'],
+        assigned_regions: ['Delhi Region', 'Mumbai Region', 'Kolkata Region'],
         created_by: adminUserId
       },
       {
@@ -542,8 +542,8 @@ export class DataInitializer {
         passing_score: 75,
         max_attempts: 2,
         is_active: true,
-        assigned_zones: ['North Zone'],
-        assigned_regions: ['Delhi Region'],
+        assigned_zones: ['North Zone', 'South Zone', 'East Zone'],
+        assigned_regions: ['Delhi Region', 'Mumbai Region', 'Kolkata Region'],
         created_by: adminUserId
       },
       {
