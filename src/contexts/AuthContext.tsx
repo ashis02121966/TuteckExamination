@@ -162,7 +162,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('Login response:', response);
       
       if (response.success && response.data) {
-        const { user, token } = response.data;
+        const { user, token, session } = response.data;
         console.log('Setting user:', user);
         
         // Check if this is first login (password hasn't been changed) - only in production mode
@@ -172,6 +172,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(user);
         localStorage.setItem('authToken', token);
         localStorage.setItem('userData', JSON.stringify(user));
+        
+        // Store Supabase session if available
+        if (session && !isDemoMode) {
+          localStorage.setItem('supabase.auth.token', JSON.stringify(session));
+        }
         
         // Show password change modal for first login (only in production mode)
         if (isFirstLogin) {
