@@ -939,6 +939,51 @@ export const surveyApi = {
     }
   },
 
+  getSurveySections: async (): Promise<ApiResponse<Section[]>> => {
+    if (isDemoMode) {
+      return {
+        success: true,
+        data: [],
+        message: 'Demo mode - no survey sections available'
+      };
+    }
+
+    try {
+      const { data, error } = await supabase!
+        .from('survey_sections')
+        .select(`
+          *,
+          survey:surveys(title)
+        `)
+        .order('section_order');
+
+      if (error) throw error;
+
+      const sections = data.map(section => ({
+        id: section.id,
+        surveyId: section.survey_id,
+        title: section.title,
+        description: section.description,
+        questionsCount: section.questions_count,
+        order: section.section_order,
+        questions: []
+      }));
+
+      return {
+        success: true,
+        data: sections,
+        message: 'Survey sections fetched successfully'
+      };
+    } catch (error) {
+      console.error('Failed to fetch survey sections:', error);
+      return {
+        success: false,
+        data: [],
+        message: error instanceof Error ? error.message : 'Failed to fetch survey sections'
+      };
+    }
+  },
+
   async updateSurvey(surveyId: string, surveyData: any): Promise<ApiResponse<Survey>> {
     try {
       if (isDemoMode) {
