@@ -181,8 +181,7 @@ class UserApi extends BaseApi {
       }
 
       console.log('UserApi: Fetching users...');
-      // Use service role to bypass RLS and get all users for admin
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase!
         .from('users')
         .select(`
           *,
@@ -1411,8 +1410,8 @@ class EnumeratorDashboardApi extends BaseApi {
       const certificates = (certificatesData || []).map((cert: any) => ({
         id: cert.id,
         userId: cert.user_id,
-      // Get total users count - use service role to bypass RLS
-      const { count: totalUsers } = await supabaseAdmin
+        user: {
+          id: cert.user_id,
           name: cert.user.name,
           email: cert.user.email,
           role: cert.user.role
@@ -1464,9 +1463,14 @@ class SupervisorDashboardApi extends BaseApi {
         return { success: false, message: 'Supervisor dashboard not available in demo mode' };
       }
 
+      // Get total users count - use service role to bypass RLS
+      const { count: totalUsers } = await supabaseAdmin!
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+
       // Mock data for now
       const dashboardData: SupervisorDashboard = {
-        totalUsers: 0,
+        totalUsers: totalUsers || 0,
         totalSurveys: 0,
         totalAttempts: 0,
         averageScore: 0,
