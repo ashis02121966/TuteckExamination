@@ -1458,3 +1458,41 @@ export const enumeratorApi = {
     return { success: false, message: 'Not implemented' };
   }
 };
+
+export const questionApi = {
+  async getQuestions(): Promise<ApiResponse<Question[]>> {
+    if (isDemoMode) {
+      await delay(300);
+      return { success: true, message: 'Demo mode', data: [] };
+    }
+    return { success: false, message: 'Not implemented' };
+  },
+  async createQuestion(questionData: any): Promise<ApiResponse<Question>> {
+    if (isDemoMode) {
+      await delay(500);
+      return { success: false, message: 'Question creation not available in demo mode' };
+    }
+    return { success: false, message: 'Not implemented' };
+  },
+  async updateQuestion(questionId: string, questionData: any): Promise<ApiResponse<Question>> {
+    if (isDemoMode) {
+      await delay(500);
+      return { success: false, message: 'Question updates not available in demo mode' };
+    }
+    return { success: false, message: 'Not implemented' };
+  },
+  async deleteQuestion(questionId: string): Promise<ApiResponse<void>> {
+    if (isDemoMode) {
+      await delay(300);
+      return { success: false, message: 'Question deletion not available in demo mode' };
+    }
+    return { success: false, message: 'Not implemented' };
+  },
+  async uploadQuestions(surveyId: string, questions: any[]): Promise<ApiResponse<void>> {
+    if (isDemoMode) {
+      await delay(500);
+      return { success: false, message: 'Question upload not available in demo mode' };
+    }
+    return { success: false, message: 'Not implemented' };
+  }
+};
