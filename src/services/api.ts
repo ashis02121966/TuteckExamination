@@ -1812,89 +1812,272 @@ class ZODashboardApi extends BaseApi {
 
 // Results and Analytics API
 class ResultApi extends BaseApi {
-  async getResults(filters: AnalyticsFilter): Promise<ApiResponse<TestResult[]>> {
+  async getResults(filters?: AnalyticsFilter): Promise<ApiResponse<TestResult[]>> {
     try {
-      if (isDemoMode) {
-        return { success: false, message: 'Results not available in demo mode' };
+      if (!supabase) {
+        return { success: false, message: 'Database not configured', data: [] };
       }
 
-      const { data, error } = await supabase!
+      // Fetch test results with user and survey data
+      const { data, error } = await supabase
         .from('test_results')
         .select(`
           *,
-          user:users(name, email, role:roles(name)),
-          survey:surveys(title, max_attempts),
-          section_scores:section_scores(*)
+          user:users(
+            id,
+            name,
+            email,
+            jurisdiction,
+            zone,
+            region,
+            district,
+            role:roles(
+              id,
+              name,
+              description,
+              level
+            )
+          ),
+          survey:surveys(
+            id,
+            title,
+            description,
+            duration,
+            total_questions,
+            passing_score,
+            max_attempts
+          ),
+          section_scores(
+            section_id,
+            section_title,
+            score,
+            total_questions,
+            correct_answers
+          )
         `)
         .order('completed_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching results:', error);
+        return { success: false, message: error.message, data: [] };
+      }
 
-      const results: TestResult[] = (data || []).map((resultData: any) => ({
-        id: resultData.id,
-        userId: resultData.user_id,
-        user: resultData.user ? {
-          id: resultData.user_id,
-          name: resultData.user.name,
-          email: resultData.user.email,
-          role: resultData.user.role
-        } as User : {} as User,
-        surveyId: resultData.survey_id,
-        survey: resultData.survey ? {
-          id: resultData.survey_id,
-          title: resultData.survey.title,
-          maxAttempts: resultData.survey.max_attempts
-        } as Survey : {} as Survey,
-        sessionId: resultData.session_id,
-        score: resultData.score,
-        totalQuestions: resultData.total_questions,
-        correctAnswers: resultData.correct_answers,
-        isPassed: resultData.is_passed,
-        timeSpent: resultData.time_spent,
-        attemptNumber: resultData.attempt_number,
-        sectionScores: (resultData.section_scores || []).map((score: any) => ({
-          sectionId: score.section_id,
-          sectionTitle: score.section_title,
-          score: score.score,
-          totalQuestions: score.total_questions,
-          correctAnswers: score.correct_answers
+      const results: TestResult[] = (data || []).map((result: any) => ({
+        id: result.id,
+        userId: result.user_id,
+        user: result.user ? {
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          roleId: result.user.role?.id || '',
+          role: result.user.role ? {
+            id: result.user.role.id,
+            name: result.user.role.name,
+            description: result.user.role.description || '',
+            level: result.user.role.level,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          } : {
+            id: '',
+            name: 'Unknown Role',
+            description: '',
+            level: 5,
+            isActive: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          },
+          jurisdiction: result.user.jurisdiction,
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        } : undefined,
+        surveyId: result.survey_id,
+        survey: result.survey ? {
+          id: result.survey.id,
+          title: result.survey.title,
+          description: result.survey.description || '',
+          targetDate: new Date(),
+          duration: result.survey.duration,
+          totalQuestions: result.survey.total_questions,
+          passingScore: result.survey.passing_score,
+          maxAttempts: result.survey.max_attempts,
+          isActive: true,
+          sections: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          createdBy: ''
+        } : undefined,
+        sessionId: result.session_id,
+        score: result.score,
+        totalQuestions: result.total_questions,
+        correctAnswers: result.correct_answers,
+        isPassed: result.is_passed,
+        timeSpent: result.time_spent,
+        attemptNumber: result.attempt_number,
+        sectionScores: (result.section_scores || []).map((ss: any) => ({
+          sectionId: ss.section_id,
+          sectionTitle: ss.section_title,
+          score: ss.score,
+          totalQuestions: ss.total_questions,
+          correctAnswers: ss.correct_answers
         })),
-        completedAt: new Date(resultData.completed_at),
-        certificateId: resultData.certificate_id,
-        grade: resultData.grade
+        completedAt: new Date(result.completed_at),
+        certificateId: result.certificate_id,
+        grade: result.grade
       }));
 
-      return { success: true, message: 'Results fetched successfully', data: results };
+      return { success: true, data: results, message: 'Results fetched successfully' };
     } catch (error) {
-      return this.handleError(error);
+      console.error('Error fetching results:', error);
+      return { success: false, message: 'Failed to fetch results', data: [] };
     }
   }
 
-  async getAnalytics(filters: AnalyticsFilter): Promise<ApiResponse<AnalyticsData>> {
+  async getAnalytics(filters?: AnalyticsFilter): Promise<ApiResponse<AnalyticsData>> {
     try {
-      if (isDemoMode) {
-        return { success: false, message: 'Analytics not available in demo mode' };
+      if (!supabase) {
+        return { success: false, message: 'Database not configured', data: {} as AnalyticsData };
       }
 
-      // Mock analytics data for now
-      const analyticsData: AnalyticsData = {
+      // Get overview statistics
+      const { data: resultsData, error: resultsError } = await supabase
+        .from('test_results')
+        .select('*');
+
+      if (resultsError) {
+        console.error('Error fetching analytics:', resultsError);
+        return { success: false, message: resultsError.message, data: {} as AnalyticsData };
+      }
+
+      const totalAttempts = resultsData?.length || 0;
+      const passedAttempts = resultsData?.filter(r => r.is_passed).length || 0;
+      const passRate = totalAttempts > 0 ? (passedAttempts / totalAttempts) * 100 : 0;
+      const averageScore = totalAttempts > 0 
+        ? resultsData!.reduce((sum, r) => sum + r.score, 0) / totalAttempts 
+        : 0;
+      const averageTime = totalAttempts > 0 
+        ? resultsData!.reduce((sum, r) => sum + (r.time_spent / 60), 0) / totalAttempts 
+        : 0;
+
+      // Get performance by role
+      const { data: rolePerformance, error: roleError } = await supabase
+        .from('test_results')
+        .select(`
+          is_passed,
+          user:users(
+            role:roles(name)
+          )
+        `);
+
+      const performanceByRole = rolePerformance ? 
+        Object.entries(
+          rolePerformance.reduce((acc: any, result: any) => {
+            const roleName = result.user?.role?.name || 'Unknown';
+            if (!acc[roleName]) {
+              acc[roleName] = { total: 0, passed: 0 };
+            }
+            acc[roleName].total++;
+            if (result.is_passed) acc[roleName].passed++;
+            return acc;
+          }, {})
+        ).map(([name, stats]: [string, any]) => ({
+          name,
+          value: stats.passed,
+          total: stats.total,
+          percentage: stats.total > 0 ? (stats.passed / stats.total) * 100 : 0
+        })) : [];
+
+      // Get performance by survey
+      const { data: surveyPerformance, error: surveyError } = await supabase
+        .from('test_results')
+        .select(`
+          is_passed,
+          survey:surveys(title)
+        `);
+
+      const performanceBySurvey = surveyPerformance ? 
+        Object.entries(
+          surveyPerformance.reduce((acc: any, result: any) => {
+            const surveyTitle = result.survey?.title || 'Unknown Survey';
+            if (!acc[surveyTitle]) {
+              acc[surveyTitle] = { total: 0, passed: 0 };
+            }
+            acc[surveyTitle].total++;
+            if (result.is_passed) acc[surveyTitle].passed++;
+            return acc;
+          }, {})
+        ).map(([name, stats]: [string, any]) => ({
+          name,
+          value: stats.passed,
+          total: stats.total,
+          percentage: stats.total > 0 ? (stats.passed / stats.total) * 100 : 0
+        })) : [];
+
+      // Get top and low performers
+      const { data: userPerformance, error: userError } = await supabase
+        .from('test_results')
+        .select(`
+          score,
+          is_passed,
+          user:users(id, name)
+        `);
+
+      const userStats = userPerformance ? 
+        Object.entries(
+          userPerformance.reduce((acc: any, result: any) => {
+            const userId = result.user?.id;
+            const userName = result.user?.name || 'Unknown User';
+            if (!userId) return acc;
+            
+            if (!acc[userId]) {
+              acc[userId] = { 
+                userName, 
+                totalAttempts: 0, 
+                totalScore: 0, 
+                passed: 0 
+              };
+            }
+            acc[userId].totalAttempts++;
+            acc[userId].totalScore += result.score;
+            if (result.is_passed) acc[userId].passed++;
+            return acc;
+          }, {})
+        ).map(([userId, stats]: [string, any]) => ({
+          userId,
+          userName: stats.userName,
+          averageScore: stats.totalAttempts > 0 ? stats.totalScore / stats.totalAttempts : 0,
+          totalAttempts: stats.totalAttempts,
+          passRate: stats.totalAttempts > 0 ? (stats.passed / stats.totalAttempts) * 100 : 0
+        })) : [];
+
+      const topPerformers = userStats
+        .sort((a, b) => b.averageScore - a.averageScore)
+        .slice(0, 5);
+
+      const lowPerformers = userStats
+        .sort((a, b) => a.averageScore - b.averageScore)
+        .slice(0, 5);
+
+      const analytics: AnalyticsData = {
         overview: {
-          totalAttempts: 0,
-          passRate: 0,
-          averageScore: 0,
-          averageTime: 0
+          totalAttempts,
+          passRate,
+          averageScore,
+          averageTime
         },
-        performanceByRole: [],
-        performanceBySurvey: [],
-        performanceByJurisdiction: [],
-        timeSeriesData: [],
-        topPerformers: [],
-        lowPerformers: []
+        performanceByRole,
+        performanceBySurvey,
+        performanceByJurisdiction: [], // Can be implemented later if needed
+        timeSeriesData: [], // Can be implemented later if needed
+        topPerformers,
+        lowPerformers
       };
 
-      return { success: true, message: 'Analytics data fetched successfully', data: analyticsData };
+      return { success: true, data: analytics, message: 'Analytics fetched successfully' };
     } catch (error) {
-      return this.handleError(error);
+      console.error('Error fetching analytics:', error);
+      return { success: false, message: 'Failed to fetch analytics', data: {} as AnalyticsData };
     }
   }
 
