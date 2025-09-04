@@ -214,8 +214,21 @@ export const authApi = {
       const { data: { user } } = await supabase!.auth.getUser();
       if (user) {
         await supabase!
-          .from('users')
-          .update({ password_changed_at: new Date().toISOString() })
+          .from('activity_logs')
+          .insert({
+            user_id: userId,
+            activity_type: 'security_violation',
+            description: violation,
+            metadata: { session_id: sessionId, timestamp: new Date().toISOString() }
+          });
+      } catch (error) {
+        console.error('Failed to log security violation:', error);
+      }
+    }
+  }
+};
+
+export const questionApi = {
           .eq('id', user.id);
       }
 
