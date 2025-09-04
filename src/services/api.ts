@@ -566,13 +566,15 @@ class UserApi extends BaseApi {
         };
       }
 
-      const { data, error } = await this.getClient()
+      const { data, error } = await supabaseAdmin
         .from('users')
         .select(`
           *,
-          role:roles(*)
+          role:roles(*),
+          role_id
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .eq('is_active', true);
 
       if (error) {
         console.error('Failed to fetch users:', error);
