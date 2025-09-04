@@ -452,7 +452,12 @@ export function Questions() {
                 filteredSurveys.map((survey) => (
                   <div
                     key={survey.id}
-                    onClick={() => handleSurveySelect(survey)}
+                    onClick={() => {
+                      console.log('Survey selected:', survey.title);
+                      setSelectedSurvey(survey);
+                      setSelectedSection(null);
+                      setQuestions([]);
+                    }}
                     className={`p-4 rounded-lg border cursor-pointer transition-colors ${
                       selectedSurvey?.id === survey.id
                         ? 'border-blue-500 bg-blue-50'
