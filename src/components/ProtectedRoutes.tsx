@@ -44,6 +44,8 @@ function DashboardRedirect() {
         return '/supervisor-dashboard';
       case 'enumerator':
         return '/enumerator-dashboard';
+      case 'fresherbscbca':
+        return '/enumerator-dashboard';
       default:
         console.log('Unknown role, defaulting to dashboard');
         return '/dashboard';

@@ -45,15 +45,18 @@ const allMenuItems: MenuItem[] = [
   
   // Enumerator items
   { to: '/enumerator-dashboard', icon: LayoutDashboard, label: 'My Dashboard', roles: ['Enumerator'], level: 5 },
-  { to: '/available-tests', icon: BookOpen, label: 'Available Tests', roles: ['Enumerator'], level: 5 },
-  { to: '/my-results', icon: TrendingUp, label: 'My Results', roles: ['Enumerator'], level: 5 },
-  { to: '/my-certificates', icon: Trophy, label: 'My Certificates', roles: ['Enumerator'], level: 5 },
-  { to: '/test-schedule', icon: Timer, label: 'Test Schedule', roles: ['Enumerator'], level: 5 },
+  { to: '/available-tests', icon: BookOpen, label: 'Available Tests', roles: ['Enumerator', 'FresherBScBCA'], level: 5 },
+  { to: '/my-results', icon: TrendingUp, label: 'My Results', roles: ['Enumerator', 'FresherBScBCA'], level: 5 },
+  { to: '/my-certificates', icon: Trophy, label: 'My Certificates', roles: ['Enumerator', 'FresherBScBCA'], level: 5 },
+  { to: '/test-schedule', icon: Timer, label: 'Test Schedule', roles: ['Enumerator', 'FresherBScBCA'], level: 5 },
+  
+  // FresherBScBCA items (same as Enumerator for test access)
+  { to: '/enumerator-dashboard', icon: LayoutDashboard, label: 'My Dashboard', roles: ['FresherBScBCA'], level: 6 },
   
   // Shared items (accessible by multiple roles)
   { to: '/results', icon: BarChart3, label: 'Results & Analytics', roles: ['Admin', 'ZO User', 'RO User', 'Supervisor'], level: 1 },
   { to: '/enumerator-status', icon: Eye, label: 'Candidate Status', roles: ['Admin', 'ZO User', 'RO User', 'Supervisor'], level: 1 },
-  { to: '/certificates', icon: Award, label: 'Certificates', roles: ['Admin', 'ZO User', 'RO User', 'Supervisor', 'Enumerator'], level: 1 }
+  { to: '/certificates', icon: Award, label: 'Certificates', roles: ['Admin', 'ZO User', 'RO User', 'Supervisor', 'Enumerator', 'FresherBScBCA'], level: 1 }
 ];
 
 // Legacy menu items structure for backward compatibility
@@ -95,6 +98,13 @@ const menuItems = {
     { to: '/certificates', icon: Award, label: 'Team Certificates' }
   ],
   enumerator: [
+    { to: '/enumerator-dashboard', icon: LayoutDashboard, label: 'My Dashboard' },
+    { to: '/available-tests', icon: BookOpen, label: 'Available Tests' },
+    { to: '/my-results', icon: TrendingUp, label: 'My Results' },
+    { to: '/my-certificates', icon: Trophy, label: 'My Certificates' },
+    { to: '/test-schedule', icon: Timer, label: 'Test Schedule' }
+  ],
+  fresherbscbca: [
     { to: '/enumerator-dashboard', icon: LayoutDashboard, label: 'My Dashboard' },
     { to: '/available-tests', icon: BookOpen, label: 'Available Tests' },
     { to: '/my-results', icon: TrendingUp, label: 'My Results' },
