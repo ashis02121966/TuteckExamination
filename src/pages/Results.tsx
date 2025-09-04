@@ -34,7 +34,7 @@ export function Results() {
     try {
       setIsLoading(true);
       const response = await resultApi.getResults(filters);
-      setResults(response.data);
+      setResults(response.data || []);
     } catch (error) {
       console.error('Failed to fetch results:', error);
     } finally {
