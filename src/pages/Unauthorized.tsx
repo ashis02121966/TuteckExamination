@@ -10,41 +10,13 @@ export function Unauthorized() {
   const { user } = useAuth();
 
   const handleGoBack = () => {
-    // Navigate to login page
+    // Always navigate to login page
     navigate('/login');
   };
 
   const handleGoHome = () => {
-    // Navigate to appropriate dashboard based on user role
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    const roleName = user.role.name.toLowerCase();
-    console.log('Navigating home for role:', roleName);
-    
-    switch (roleName) {
-      case 'administrator':
-      case 'admin':
-        navigate('/dashboard');
-        break;
-      case 'zo user':
-        navigate('/zo-dashboard');
-        break;
-      case 'ro user':
-        navigate('/ro-dashboard');
-        break;
-      case 'supervisor':
-        navigate('/supervisor-dashboard');
-        break;
-      case 'enumerator':
-        navigate('/enumerator-dashboard');
-        break;
-      default:
-        console.log('Unknown role, defaulting to root which will redirect appropriately');
-        navigate('/');
-    }
+    // Always navigate to login page when access is denied
+    navigate('/login');
   };
 
   return (
