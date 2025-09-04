@@ -2239,101 +2239,10 @@ export const testApi = {
           session_status: 'completed',
           score,
           is_passed: isPassed,
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', sessionId);
-
-      // Get session details
-      const { data: session, error: sessionError } = await supabase
-        .from('test_sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .single();
-
-      if (sessionError) throw sessionError;
-
-      // Get all answers for this session
-      const { data: answers, error: answersError } = await supabase
-        .from('test_answers')
-        .select(`
-          question_id,
-          selected_options,
-          questions (
-            question_options (
-              id,
-              is_correct
-            )
-          )
-        `)
-        .eq('session_id', sessionId);
-
-      if (answersError) throw answersError;
-
-      // Calculate score
-      let correctAnswers = 0;
-      const totalQuestions = answers.length;
-
-      answers.forEach((answer: any) => {
-        const correctOptions = answer.questions.question_options
-          .filter((opt: any) => opt.is_correct)
-          .map((opt: any) => opt.id);
-        
-        const selectedOptions = answer.selected_options || [];
-        
-        // Check if answer is correct
-        const isCorrect = correctOptions.length === selectedOptions.length &&
-          correctOptions.every((opt: string) => selectedOptions.includes(opt));
-        
-        if (isCorrect) correctAnswers++;
-      });
-
-      const score = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
-
-      // Get survey passing score
-      const { data: surveyData, error: surveyDataError } = await supabase
-        .from('surveys')
-        .select('passing_score')
-        .eq('id', session.survey_id)
-        .single();
-
-      if (surveyDataError) throw surveyDataError;
-
-      const isPassed = score >= surveyData.passing_score;
-      const timeSpent = (session.time_remaining || 0) > 0 ? 
-        (35 * 60) - session.time_remaining : 35 * 60; // Calculate time spent
-
-      // Update session as completed
-      const { error: updateSessionError } = await supabase
-        .from('test_sessions')
-        .update({
-          session_status: 'completed',
-          score,
-          is_passed: isPassed,
           completed_at: new Date().toISOString(),
           end_time: new Date().toISOString()
         })
         .eq('id', sessionId);
-
-      if (updateSessionError) throw updateSessionError;
-
-      // Create test result
-      const { data: resultData, error: resultError } = await supabase
-        .from('test_results')
-        .insert({
-          user_id: session.user_id,
-          survey_id: session.survey_id,
-          session_id: sessionId,
-          score,
-          total_questions: totalQuestions,
-          correct_answers: correctAnswers,
-          is_passed: isPassed,
-          time_spent: timeSpent,
-          attempt_number: session.attempt_number
-        })
-        .select()
-        .single();
-
-      if (resultError) throw resultError;
 
       // Create certificate if passed
       let certificateId = null;
@@ -2374,7 +2283,7 @@ export const testApi = {
         totalQuestions,
         correctAnswers,
         isPassed,
-        timeSpent,
+        timeSpent: (session.time_remaining || 0),
         attemptNumber: session.attempt_number,
         sectionScores: [], // TODO: Calculate section scores
         completedAt: new Date(),
