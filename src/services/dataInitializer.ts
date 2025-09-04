@@ -807,7 +807,7 @@ export class DataInitializer {
     console.log('Creating RLS policies...');
     
     try {
-      // Enable RLS and create policies for questions table
+      // Enable RLS and create policies for questions and question_options tables
       await supabaseAdminClient.rpc('exec_sql', {
         sql: `
           ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
@@ -818,12 +818,7 @@ export class DataInitializer {
             FOR SELECT
             TO authenticated
             USING (true);
-        `
-      });
-      
-      // Enable RLS and create policies for question_options table
-      await supabaseAdminClient.rpc('exec_sql', {
-        sql: `
+          
           ALTER TABLE question_options ENABLE ROW LEVEL SECURITY;
           
           DROP POLICY IF EXISTS "question_options_select_authenticated" ON question_options;
@@ -832,6 +827,139 @@ export class DataInitializer {
             FOR SELECT
             TO authenticated
             USING (true);
+          
+          -- Test Results policies
+          ALTER TABLE test_results ENABLE ROW LEVEL SECURITY;
+          
+          DROP POLICY IF EXISTS "test_results_select_own" ON test_results;
+          CREATE POLICY "test_results_select_own"
+            ON test_results
+            FOR SELECT
+            TO authenticated
+            USING (user_id = auth.uid());
+          
+          DROP POLICY IF EXISTS "test_results_insert_own" ON test_results;
+          CREATE POLICY "test_results_insert_own"
+            ON test_results
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (user_id = auth.uid());
+          
+          DROP POLICY IF EXISTS "test_results_update_own" ON test_results;
+          CREATE POLICY "test_results_update_own"
+            ON test_results
+            FOR UPDATE
+            TO authenticated
+            USING (user_id = auth.uid())
+            WITH CHECK (user_id = auth.uid());
+          
+          -- Section Scores policies
+          ALTER TABLE section_scores ENABLE ROW LEVEL SECURITY;
+          
+          DROP POLICY IF EXISTS "section_scores_select_own" ON section_scores;
+          CREATE POLICY "section_scores_select_own"
+            ON section_scores
+            FOR SELECT
+            TO authenticated
+            USING (EXISTS (
+              SELECT 1 FROM test_results 
+              WHERE test_results.id = section_scores.result_id 
+              AND test_results.user_id = auth.uid()
+            ));
+          
+          DROP POLICY IF EXISTS "section_scores_insert_own" ON section_scores;
+          CREATE POLICY "section_scores_insert_own"
+            ON section_scores
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (EXISTS (
+              SELECT 1 FROM test_results 
+              WHERE test_results.id = section_scores.result_id 
+              AND test_results.user_id = auth.uid()
+            ));
+          
+          -- Test Sessions policies
+          ALTER TABLE test_sessions ENABLE ROW LEVEL SECURITY;
+          
+          DROP POLICY IF EXISTS "test_sessions_select_own" ON test_sessions;
+          CREATE POLICY "test_sessions_select_own"
+            ON test_sessions
+            FOR SELECT
+            TO authenticated
+            USING (user_id = auth.uid());
+          
+          DROP POLICY IF EXISTS "test_sessions_insert_own" ON test_sessions;
+          CREATE POLICY "test_sessions_insert_own"
+            ON test_sessions
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (user_id = auth.uid());
+          
+          DROP POLICY IF EXISTS "test_sessions_update_own" ON test_sessions;
+          CREATE POLICY "test_sessions_update_own"
+            ON test_sessions
+            FOR UPDATE
+            TO authenticated
+            USING (user_id = auth.uid())
+            WITH CHECK (user_id = auth.uid());
+          
+          -- Test Answers policies
+          ALTER TABLE test_answers ENABLE ROW LEVEL SECURITY;
+          
+          DROP POLICY IF EXISTS "test_answers_select_own" ON test_answers;
+          CREATE POLICY "test_answers_select_own"
+            ON test_answers
+            FOR SELECT
+            TO authenticated
+            USING (EXISTS (
+              SELECT 1 FROM test_sessions 
+              WHERE test_sessions.id = test_answers.session_id 
+              AND test_sessions.user_id = auth.uid()
+            ));
+          
+          DROP POLICY IF EXISTS "test_answers_insert_own" ON test_answers;
+          CREATE POLICY "test_answers_insert_own"
+            ON test_answers
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (EXISTS (
+              SELECT 1 FROM test_sessions 
+              WHERE test_sessions.id = test_answers.session_id 
+              AND test_sessions.user_id = auth.uid()
+            ));
+          
+          DROP POLICY IF EXISTS "test_answers_update_own" ON test_answers;
+          CREATE POLICY "test_answers_update_own"
+            ON test_answers
+            FOR UPDATE
+            TO authenticated
+            USING (EXISTS (
+              SELECT 1 FROM test_sessions 
+              WHERE test_sessions.id = test_answers.session_id 
+              AND test_sessions.user_id = auth.uid()
+            ))
+            WITH CHECK (EXISTS (
+              SELECT 1 FROM test_sessions 
+              WHERE test_sessions.id = test_answers.session_id 
+              AND test_sessions.user_id = auth.uid()
+            ));
+          
+          -- Certificates policies
+          ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
+          
+          DROP POLICY IF EXISTS "certificates_select_own" ON certificates;
+          CREATE POLICY "certificates_select_own"
+            ON certificates
+            FOR SELECT
+            TO authenticated
+            USING (user_id = auth.uid());
+          
+          DROP POLICY IF EXISTS "certificates_insert_own" ON certificates;
+          CREATE POLICY "certificates_insert_own"
+            ON certificates
+            FOR INSERT
+            TO authenticated
+            WITH CHECK (user_id = auth.uid());
         `
       });
       

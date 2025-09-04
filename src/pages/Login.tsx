@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/UI/Button';
 import { Input } from '../components/UI/Input';
 import { DataInitializer } from '../services/dataInitializer';
+import { DataInitializer } from '../services/dataInitializer';
 import { FileText, AlertCircle, Users, Building, UserCheck, User } from 'lucide-react';
 import { isDemoMode } from '../lib/supabase';
 
@@ -12,11 +13,34 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const [error, setError] = useState('');
 
   if (isAuthenticated) {
     return <Navigate to="/" replace />;
   }
+
+  const handleInitializeDatabase = async () => {
+    setIsInitializing(true);
+    setError('');
+    
+    try {
+      const result = await DataInitializer.initializeDatabase();
+      
+      if (result.success) {
+        setError('');
+        // Show success message briefly
+        alert('Database initialized successfully! You can now login with the demo credentials.');
+      } else {
+        setError(result.message);
+      }
+    } catch (error) {
+      console.error('Database initialization error:', error);
+      setError('Failed to initialize database. Please try again.');
+    }
+    
+    setIsInitializing(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +87,23 @@ export function Login() {
             <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
           </div>
 
+          {/* Database Initialization Section */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-sm font-semibold text-blue-800 mb-2">First Time Setup</h3>
+            <p className="text-xs text-blue-700 mb-3">
+              If this is your first time using the system, please initialize the database with demo data.
+            </p>
+            <Button
+              onClick={handleInitializeDatabase}
+              disabled={isInitializing}
+              variant="outline"
+              size="sm"
+              className="w-full text-blue-700 border-blue-300 hover:bg-blue-100"
+            >
+              {isInitializing ? 'Initializing Database...' : 'Initialize Database'}
+            </Button>
+          </div>
+
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
@@ -101,6 +142,15 @@ export function Login() {
               {isLoading ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
+
+          {/* Demo Credentials Info */}
+          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Demo Credentials</h3>
+            <div className="text-xs text-gray-600 space-y-1">
+              <p><strong>Admin:</strong> admin@esigma.com / password123</p>
+              <p><strong>Enumerator:</strong> enumerator@esigma.com / password123</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
