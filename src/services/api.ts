@@ -1365,28 +1365,99 @@ export const testApi = {
 export const resultApi = {
   async getResults(filters?: any) {
     try {
+      console.log('ResultAPI: Fetching results...');
+      
       if (isDemoMode) {
+        console.log('ResultAPI: Demo mode - returning empty results');
         return { success: true, data: [], message: 'Results fetched (demo)' };
       }
 
-      if (!supabase) {
+      if (!supabaseAdmin) {
         throw new Error('Supabase client not available');
       }
 
-      const { data: results, error } = await supabase
+      // Use admin client to bypass RLS
+      const { data: results, error } = await supabaseAdmin
         .from('test_results')
         .select(`
           *,
-          user:users(*),
-          survey:surveys(*)
+          user:users(
+            *,
+            role:roles(*)
+          ),
+          survey:surveys(*),
+          section_scores:section_scores(*)
         `)
         .order('completed_at', { ascending: false });
 
       if (error) {
+        console.error('ResultAPI: Error fetching results:', error);
         return { success: false, data: [], message: error.message };
       }
 
-      return { success: true, data: results || [], message: 'Results fetched successfully' };
+      console.log(`ResultAPI: Fetched ${results?.length || 0} results`);
+
+      const formattedResults = (results || []).map(result => ({
+        id: result.id,
+        userId: result.user_id,
+        user: result.user ? {
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          roleId: result.user.role_id,
+          role: result.user.role ? {
+            id: result.user.role.id,
+            name: result.user.role.name,
+            description: result.user.role.description,
+            level: result.user.role.level,
+            isActive: result.user.role.is_active,
+            createdAt: new Date(result.user.role.created_at),
+            updatedAt: new Date(result.user.role.updated_at)
+          } : null,
+          jurisdiction: result.user.jurisdiction,
+          zone: result.user.zone,
+          region: result.user.region,
+          district: result.user.district,
+          isActive: result.user.is_active,
+          createdAt: new Date(result.user.created_at),
+          updatedAt: new Date(result.user.updated_at)
+        } : null,
+        surveyId: result.survey_id,
+        survey: result.survey ? {
+          id: result.survey.id,
+          title: result.survey.title,
+          description: result.survey.description,
+          targetDate: new Date(result.survey.target_date),
+          duration: result.survey.duration,
+          totalQuestions: result.survey.total_questions,
+          passingScore: result.survey.passing_score,
+          maxAttempts: result.survey.max_attempts,
+          isActive: result.survey.is_active,
+          sections: [],
+          createdAt: new Date(result.survey.created_at),
+          updatedAt: new Date(result.survey.updated_at),
+          createdBy: result.survey.created_by
+        } : null,
+        sessionId: result.session_id,
+        score: result.score,
+        totalQuestions: result.total_questions,
+        correctAnswers: result.correct_answers,
+        isPassed: result.is_passed,
+        timeSpent: result.time_spent,
+        attemptNumber: result.attempt_number,
+        grade: result.grade,
+        completedAt: new Date(result.completed_at),
+        certificateId: result.certificate_id,
+        sectionScores: (result.section_scores || []).map((score: any) => ({
+          sectionId: score.section_id,
+          sectionTitle: score.section_title,
+          score: parseFloat(score.score),
+          totalQuestions: score.total_questions,
+          correctAnswers: score.correct_answers
+        }))
+      }));
+
+      return { success: true, data: formattedResults, message: 'Results fetched successfully' };
     } catch (error) {
       console.error('ResultAPI: Error:', error);
       return { success: false, data: [], message: 'Failed to fetch results' };
@@ -1395,7 +1466,10 @@ export const resultApi = {
 
   async getAnalytics(filters?: any) {
     try {
+      console.log('ResultAPI: Fetching analytics...');
+      
       if (isDemoMode) {
+        console.log('ResultAPI: Demo mode - returning empty analytics');
         return { 
           success: true, 
           data: {
@@ -1410,22 +1484,180 @@ export const resultApi = {
         };
       }
 
-      // Return empty analytics for now
+      if (!supabaseAdmin) {
+        throw new Error('Supabase admin client not available');
+      }
+
+      // Get all test results with user and survey data
+      const { data: results, error } = await supabaseAdmin
+        .from('test_results')
+        .select(`
+          *,
+          user:users(
+            *,
+            role:roles(*)
+          ),
+          survey:surveys(*)
+        `)
+        .order('completed_at', { ascending: false });
+
+      if (error) {
+        console.error('ResultAPI: Error fetching analytics data:', error);
+        return { success: false, message: error.message };
+      }
+
+      console.log(`ResultAPI: Processing analytics for ${results?.length || 0} results`);
+
+      const validResults = results || [];
+      
+      // Calculate overview statistics
+      const totalAttempts = validResults.length;
+      const passedAttempts = validResults.filter(r => r.is_passed).length;
+      const passRate = totalAttempts > 0 ? (passedAttempts / totalAttempts) * 100 : 0;
+      const averageScore = totalAttempts > 0 
+        ? validResults.reduce((sum, r) => sum + r.score, 0) / totalAttempts 
+        : 0;
+      const averageTime = totalAttempts > 0 
+        ? validResults.reduce((sum, r) => sum + (r.time_spent || 0), 0) / totalAttempts / 60 // Convert to minutes
+        : 0;
+
+      // Performance by role
+      const roleStats = validResults.reduce((acc: any, result) => {
+        const roleName = result.user?.role?.name || 'Unknown';
+        if (!acc[roleName]) {
+          acc[roleName] = { total: 0, passed: 0 };
+        }
+        acc[roleName].total++;
+        if (result.is_passed) {
+          acc[roleName].passed++;
+        }
+        return acc;
+      }, {});
+
+      const performanceByRole = Object.entries(roleStats).map(([name, stats]: [string, any]) => ({
+        name,
+        value: stats.passed,
+        total: stats.total,
+        percentage: stats.total > 0 ? (stats.passed / stats.total) * 100 : 0
+      }));
+
+      // Performance by survey
+      const surveyStats = validResults.reduce((acc: any, result) => {
+        const surveyTitle = result.survey?.title || 'Unknown Survey';
+        if (!acc[surveyTitle]) {
+          acc[surveyTitle] = { total: 0, passed: 0 };
+        }
+        acc[surveyTitle].total++;
+        if (result.is_passed) {
+          acc[surveyTitle].passed++;
+        }
+        return acc;
+      }, {});
+
+      const performanceBySurvey = Object.entries(surveyStats).map(([name, stats]: [string, any]) => ({
+        name,
+        value: stats.passed,
+        total: stats.total,
+        percentage: stats.total > 0 ? (stats.passed / stats.total) * 100 : 0
+      }));
+
+      // Time series data (group by date)
+      const dateStats = validResults.reduce((acc: any, result) => {
+        const date = new Date(result.completed_at).toISOString().split('T')[0];
+        if (!acc[date]) {
+          acc[date] = { attempts: 0, passed: 0, totalScore: 0 };
+        }
+        acc[date].attempts++;
+        if (result.is_passed) {
+          acc[date].passed++;
+        }
+        acc[date].totalScore += result.score;
+        return acc;
+      }, {});
+
+      const timeSeriesData = Object.entries(dateStats)
+        .map(([date, stats]: [string, any]) => ({
+          date,
+          attempts: stats.attempts,
+          passed: stats.passed,
+          averageScore: stats.attempts > 0 ? stats.totalScore / stats.attempts : 0
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      // Top performers (users with highest average scores)
+      const userStats = validResults.reduce((acc: any, result) => {
+        const userId = result.user_id;
+        const userName = result.user?.name || 'Unknown User';
+        if (!acc[userId]) {
+          acc[userId] = { 
+            userId, 
+            userName, 
+            totalScore: 0, 
+            attempts: 0, 
+            passed: 0 
+          };
+        }
+        acc[userId].totalScore += result.score;
+        acc[userId].attempts++;
+        if (result.is_passed) {
+          acc[userId].passed++;
+        }
+        return acc;
+      }, {});
+
+      const userPerformance = Object.values(userStats).map((stats: any) => ({
+        userId: stats.userId,
+        userName: stats.userName,
+        averageScore: stats.attempts > 0 ? stats.totalScore / stats.attempts : 0,
+        totalAttempts: stats.attempts,
+        passRate: stats.attempts > 0 ? (stats.passed / stats.attempts) * 100 : 0
+      }));
+
+      const topPerformers = userPerformance
+        .sort((a, b) => b.averageScore - a.averageScore)
+        .slice(0, 5);
+
+      const lowPerformers = userPerformance
+        .sort((a, b) => a.averageScore - b.averageScore)
+        .slice(0, 5);
+
+      const analyticsData = {
+        overview: {
+          totalAttempts,
+          passRate,
+          averageScore,
+          averageTime
+        },
+        performanceByRole,
+        performanceBySurvey,
+        performanceByJurisdiction: [], // Can be implemented later
+        timeSeriesData,
+        topPerformers,
+        lowPerformers
+      };
+
+      console.log('ResultAPI: Analytics data compiled:', analyticsData);
+
       return { 
         success: true, 
-        data: {
-          overview: { totalAttempts: 0, passRate: 0, averageScore: 0, averageTime: 0 },
-          performanceByRole: [],
-          performanceBySurvey: [],
-          timeSeriesData: [],
-          topPerformers: [],
-          lowPerformers: []
-        }, 
+        data: analyticsData, 
         message: 'Analytics fetched successfully' 
       };
     } catch (error) {
       console.error('ResultAPI: Analytics error:', error);
-      return { success: false, message: 'Failed to fetch analytics' };
+      return { 
+        success: false, 
+        data: {
+          overview: { totalAttempts: 0, passRate: 0, averageScore: 0, averageTime: 0 },
+          performanceByRole: [],
+          performanceBySurvey: [],
+          performanceByJurisdiction: [],
+          timeSeriesData: [],
+          topPerformers: [],
+          lowPerformers: []
+        },
+        message: 'Failed to fetch analytics' 
+      };
     }
   },
 
