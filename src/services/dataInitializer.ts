@@ -374,7 +374,7 @@ export class DataInitializer {
         email: 'admin@esigma.com',
         password: 'password123',
         name: 'System Administrator',
-        role_id: '550e8400-e29b-41d4-a716-446655440001',
+        role_id: '550e8400-e29b-41d4-a716-446655440001', // Admin
         is_active: true,
         jurisdiction: 'National',
         zone: null,
@@ -387,7 +387,7 @@ export class DataInitializer {
         email: 'zo@esigma.com',
         password: 'password123',
         name: 'Zonal Officer',
-        role_id: '550e8400-e29b-41d4-a716-446655440002',
+        role_id: '550e8400-e29b-41d4-a716-446655440003', // ZO User
         is_active: true,
         jurisdiction: 'North Zone',
         zone: 'North Zone',
@@ -400,7 +400,7 @@ export class DataInitializer {
         email: 'ro@esigma.com',
         password: 'password123',
         name: 'Regional Officer',
-        role_id: '550e8400-e29b-41d4-a716-446655440003',
+        role_id: '550e8400-e29b-41d4-a716-446655440004', // RO User
         is_active: true,
         jurisdiction: 'Delhi Region',
         zone: 'North Zone',
@@ -414,7 +414,7 @@ export class DataInitializer {
         email: 'supervisor@esigma.com',
         password: 'password123',
         name: 'Field Supervisor',
-        role_id: '550e8400-e29b-41d4-a716-446655440004',
+        role_id: '550e8400-e29b-41d4-a716-446655440005', // Supervisor
         is_active: true,
         jurisdiction: 'Central Delhi District',
         zone: 'North Zone',
@@ -428,7 +428,7 @@ export class DataInitializer {
         email: 'enumerator@esigma.com',
         password: 'password123',
         name: 'Field Enumerator',
-        role_id: '550e8400-e29b-41d4-a716-446655440006',
+        role_id: '550e8400-e29b-41d4-a716-446655440006', // Enumerator
         is_active: true,
         jurisdiction: 'Block A, Central Delhi',
         zone: 'North Zone',
@@ -448,7 +448,7 @@ export class DataInitializer {
         
         // Create user in Supabase Auth
         console.log(`Creating new auth user: ${user.email}`);
-        const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
+        const { data: authData, error: authError } = await supabaseAdminClient.auth.admin.createUser({
           email: user.email,
           password: user.password,
           email_confirm: false, // Confirm email immediately
@@ -464,7 +464,7 @@ export class DataInitializer {
 
         // Manually confirm the user's email to bypass confirmation requirement
         if (authData.user) {
-          const { error: confirmError } = await supabaseClient.auth.admin.updateUserById(
+          const { error: confirmError } = await supabaseAdminClient.auth.admin.updateUserById(
             authData.user.id,
             { email_confirm: true }
           );
@@ -483,7 +483,7 @@ export class DataInitializer {
         
         // Create user profile in custom users table
         console.log(`Creating profile for ${user.email}`);
-        const { error: profileError } = await supabaseClient
+        const { error: profileError } = await supabaseAdminClient
           .from('users')
           .insert({
             id: authData.user.id,

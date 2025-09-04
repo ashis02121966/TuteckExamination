@@ -203,14 +203,39 @@ export const authApi = {
       }
 
       if (!authData.user) {
-        return {
-          success: false,
-          message: 'Authentication failed - no user data'
-        };
+        console.error('User profile fetch error:', userError);
+      if (isDemoMode) {
+        // Demo mode login
+        const demoUser = demoUsers.find(u => u.email === email && password === 'password123');
+        if (demoUser) {
+          return {
+            success: true,
+            message: 'Login successful',
+            data: {
+              user: demoUser,
+              token: 'demo-token-' + Date.now()
+            }
+          };
+        }
+        return { success: false, message: 'Invalid credentials' };
       }
 
-      // Get user profile from database
-      const { data: userData, error: userError } = await supabase
+      // Production mode - authenticate with Supabase Auth
+      const { data: authData, error: authError } = await supabase!.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) {
+        return { success: false, message: authError.message };
+      }
+
+      if (!authData.user) {
+        return { success: false, message: 'Authentication failed' };
+      }
+
+      // Get user profile from custom users table
+      const { data: userData, error: userError } = await supabase!
         .from('users')
         .select(`
           *,
@@ -220,59 +245,33 @@ export const authApi = {
         .single();
 
       if (userError || !userData) {
-        console.error('User profile fetch error:', userError);
-        return {
-          success: false,
-          message: 'Failed to load user profile'
-        };
+        return { success: false, message: 'User profile not found' };
       }
 
-      // Transform database user to application user format
-      const user: User = {
+      const user = {
         id: userData.id,
-        email: userData.email,
         name: userData.name,
+        email: userData.email,
         roleId: userData.role_id,
-        role: {
-          id: userData.role.id,
-          name: userData.role.name,
-          description: userData.role.description,
-          level: userData.role.level,
-          isActive: userData.role.is_active,
-          createdAt: new Date(userData.role.created_at),
-          updatedAt: new Date(userData.role.updated_at),
-          menuAccess: userData.role.menu_access
-        },
-        isActive: userData.is_active,
+        role: userData.role,
         jurisdiction: userData.jurisdiction,
         zone: userData.zone,
         region: userData.region,
         district: userData.district,
         employeeId: userData.employee_id,
         phoneNumber: userData.phone_number,
-        profileImage: userData.profile_image,
-        parentId: userData.parent_id,
-        lastLogin: userData.last_login ? new Date(userData.last_login) : undefined,
-        passwordChangedAt: userData.password_changed_at ? new Date(userData.password_changed_at) : undefined,
+        isActive: userData.is_active,
         createdAt: new Date(userData.created_at),
-        updatedAt: new Date(userData.updated_at)
+        updatedAt: new Date(userData.updated_at),
+        passwordChangedAt: userData.password_changed_at ? new Date(userData.password_changed_at) : undefined
       };
-
-      // Update last login
-      await supabase
-        .from('users')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', user.id);
-
-      // Log activity
-      await ActivityLogger.logLogin(user.id, user.email);
 
       return {
         success: true,
         message: 'Login successful',
         data: {
           user,
-          token: authData.session?.access_token || 'demo-token'
+          token: authData.session?.access_token || ''
         }
       };
     } catch (error) {
@@ -298,29 +297,29 @@ export const authApi = {
           return { success: false, message: error.message };
         }
       }
-
-      return { success: true, message: 'Logged out successfully' };
-    } catch (error) {
-      console.error('Logout API error:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Logout failed'
-      };
-    }
-  },
-
-  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<void>> {
     try {
       if (isDemoMode) {
+        return { success: true, message: 'Logged out successfully' };
+      }
+
+      const { error } = await supabase!.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error);
+      }
+      return { success: true, message: 'Logged out successfully' };
+    } catch (error) {
+      console.error('Logout error:', error);
+      return { success: false, message: 'Logout failed' };
+    }
         await delay(500);
         return { success: true, message: 'Password changed successfully (demo mode)' };
       }
-
-      if (!supabase) {
-        throw new Error('Supabase client not available');
+    try {
+      if (isDemoMode) {
+        return { success: true, message: 'Password changed successfully (demo mode)' };
       }
 
-      const { error } = await supabase.auth.updateUser({
+      const { error } = await supabase!.auth.updateUser({
         password: newPassword
       });
 
@@ -330,9 +329,9 @@ export const authApi = {
 
       return { success: true, message: 'Password changed successfully' };
     } catch (error) {
-      console.error('Change password API error:', error);
-      return {
-        success: false,
+      console.error('Password change error:', error);
+      return { success: false, message: 'Failed to change password' };
+    }
         message: error instanceof Error ? error.message : 'Failed to change password'
       };
     }
