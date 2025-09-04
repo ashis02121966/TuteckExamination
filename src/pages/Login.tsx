@@ -186,25 +186,26 @@ export function Login() {
             <div className="mt-6 space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <h4 className="font-medium text-green-900 mb-2">Demo Credentials</h4>
+                <p className="text-sm text-green-800 mb-3">Click on any user below to auto-fill the login form:</p>
                 <div className="grid grid-cols-1 gap-2">
                   {demoCredentials.map((cred) => (
                     <button
                       key={cred.email}
                       onClick={() => handleDemoLogin(cred.email)}
-                      className={`flex items-center justify-between p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors ${cred.color}`}
-                    className={`flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors ${cred.color}`}
+                      className={`flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors ${cred.color}`}
+                    >
                       <div className="flex items-center space-x-2">
                         <cred.icon className="w-4 h-4" />
-                        <span className="text-sm font-medium">{cred.role}</span>
-                      <div className="text-left">
-                        <div className="text-sm font-medium">{cred.role}</div>
-                        <div className="text-xs opacity-75">Level {cred.roleId.slice(-1)}</div>
+                        <div className="text-left">
+                          <div className="text-sm font-medium">{cred.role}</div>
+                          <div className="text-xs opacity-75">Level {cred.roleId.slice(-1)}</div>
+                        </div>
                       </div>
-                      <span className="text-xs font-mono">{cred.email}</span>
-                    <div className="text-right">
-                      <div className="text-xs font-mono">{cred.email}</div>
-                      <div className="text-xs font-mono opacity-75">password123</div>
-                    </div>
+                      <div className="text-right">
+                        <div className="text-xs font-mono">{cred.email}</div>
+                        <div className="text-xs font-mono opacity-75">password123</div>
+                      </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -223,4 +224,3 @@ export function Login() {
     </div>
   );
 }
-              <p className="text-sm text-green-800 mb-3">Click on any user below to auto-fill the login form:</p>
