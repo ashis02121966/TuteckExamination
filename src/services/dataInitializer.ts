@@ -142,6 +142,10 @@ export class DataInitializer {
       await this.createSystemSettings(supabaseAdmin);
       console.log('System settings created successfully');
       
+      // Create RLS policies for questions and options
+      await this.createRLSPolicies(supabaseAdminClient);
+      console.log('RLS policies created successfully');
+      
       // Re-enable RLS after initialization
       await enableRLS();
 
@@ -797,6 +801,45 @@ export class DataInitializer {
 
     if (error) throw error;
     console.log('System settings created successfully');
+  }
+
+  static async createRLSPolicies(supabaseAdminClient: any) {
+    console.log('Creating RLS policies...');
+    
+    try {
+      // Enable RLS and create policies for questions table
+      await supabaseAdminClient.rpc('exec_sql', {
+        sql: `
+          ALTER TABLE questions ENABLE ROW LEVEL SECURITY;
+          
+          DROP POLICY IF EXISTS "questions_select_authenticated" ON questions;
+          CREATE POLICY "questions_select_authenticated"
+            ON questions
+            FOR SELECT
+            TO authenticated
+            USING (true);
+        `
+      });
+      
+      // Enable RLS and create policies for question_options table
+      await supabaseAdminClient.rpc('exec_sql', {
+        sql: `
+          ALTER TABLE question_options ENABLE ROW LEVEL SECURITY;
+          
+          DROP POLICY IF EXISTS "question_options_select_authenticated" ON question_options;
+          CREATE POLICY "question_options_select_authenticated"
+            ON question_options
+            FOR SELECT
+            TO authenticated
+            USING (true);
+        `
+      });
+      
+      console.log('RLS policies created successfully');
+    } catch (error) {
+      console.error('Error creating RLS policies:', error);
+      // Don't throw error - continue with initialization
+    }
   }
 
   static async checkDatabaseConnection() {
