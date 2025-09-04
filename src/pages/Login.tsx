@@ -192,15 +192,29 @@ export function Login() {
                       key={cred.email}
                       onClick={() => handleDemoLogin(cred.email)}
                       className={`flex items-center justify-between p-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors ${cred.color}`}
-                    >
+                    className={`flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors ${cred.color}`}
                       <div className="flex items-center space-x-2">
                         <cred.icon className="w-4 h-4" />
                         <span className="text-sm font-medium">{cred.role}</span>
+                      <div className="text-left">
+                        <div className="text-sm font-medium">{cred.role}</div>
+                        <div className="text-xs opacity-75">Level {cred.roleId.slice(-1)}</div>
                       </div>
                       <span className="text-xs font-mono">{cred.email}</span>
-                    </button>
+                    <div className="text-right">
+                      <div className="text-xs font-mono">{cred.email}</div>
+                      <div className="text-xs font-mono opacity-75">password123</div>
+                    </div>
                   ))}
                 </div>
+              </div>
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <h5 className="font-medium text-blue-900 mb-2">Login Instructions:</h5>
+                <ol className="text-sm text-blue-800 space-y-1">
+                  <li>1. Click on any user role above to auto-fill the form</li>
+                  <li>2. Or manually enter: <span className="font-mono">email</span> and <span className="font-mono">password123</span></li>
+                  <li>3. Click "Sign In" to access the platform</li>
+                </ol>
               </div>
             </div>
           )}
@@ -209,3 +223,4 @@ export function Login() {
     </div>
   );
 }
+              <p className="text-sm text-green-800 mb-3">Click on any user below to auto-fill the login form:</p>
