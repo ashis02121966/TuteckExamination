@@ -20,7 +20,16 @@ export function Questions() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
+  const [isEditSectionModalOpen, setIsEditSectionModalOpen] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+  const [selectedSectionForEdit, setSelectedSectionForEdit] = useState<Section | null>(null);
+  const [sectionFormData, setSectionFormData] = useState({
+    title: '',
+    description: '',
+    questionsCount: 10,
+    sectionOrder: 1
+  });
   const [formData, setFormData] = useState({
     text: '',
     type: 'single_choice' as 'single_choice' | 'multiple_choice',
@@ -272,6 +281,112 @@ export function Questions() {
     }
   };
 
+  const resetSectionForm = () => {
+    setSectionFormData({
+      title: '',
+      description: '',
+      questionsCount: 10,
+      sectionOrder: 1
+    });
+    setSelectedSectionForEdit(null);
+  };
+
+  const handleCreateSection = async () => {
+    if (!selectedSurvey) {
+      alert('Please select a survey first');
+      return;
+    }
+
+    if (!sectionFormData.title.trim()) {
+      alert('Section title is required');
+      return;
+    }
+
+    try {
+      const response = await surveyApi.createSection({
+        surveyId: selectedSurvey,
+        title: sectionFormData.title,
+        description: sectionFormData.description,
+        questionsCount: sectionFormData.questionsCount,
+        sectionOrder: sectionFormData.sectionOrder
+      });
+
+      if (response.success && response.data) {
+        setSections([...sections, response.data]);
+        setIsSectionModalOpen(false);
+        resetSectionForm();
+        alert('Section created successfully!');
+      } else {
+        alert(`Failed to create section: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to create section:', error);
+      alert('Failed to create section. Please try again.');
+    }
+  };
+
+  const handleEditSection = async () => {
+    if (!selectedSectionForEdit) return;
+
+    if (!sectionFormData.title.trim()) {
+      alert('Section title is required');
+      return;
+    }
+
+    try {
+      const response = await surveyApi.updateSection(selectedSectionForEdit.id, {
+        title: sectionFormData.title,
+        description: sectionFormData.description,
+        questionsCount: sectionFormData.questionsCount,
+        sectionOrder: sectionFormData.sectionOrder
+      });
+
+      if (response.success && response.data) {
+        setSections(sections.map(s => s.id === selectedSectionForEdit.id ? response.data! : s));
+        setIsEditSectionModalOpen(false);
+        resetSectionForm();
+        alert('Section updated successfully!');
+      } else {
+        alert(`Failed to update section: ${response.message}`);
+      }
+    } catch (error) {
+      console.error('Failed to update section:', error);
+      alert('Failed to update section. Please try again.');
+    }
+  };
+
+  const handleDeleteSection = async (sectionId: string) => {
+    if (window.confirm('Are you sure you want to delete this section? This will also delete all questions in this section. This action cannot be undone.')) {
+      try {
+        const response = await surveyApi.deleteSection(sectionId);
+        if (response.success) {
+          setSections(sections.filter(s => s.id !== sectionId));
+          if (selectedSection === sectionId) {
+            setSelectedSection('');
+            setQuestions([]);
+          }
+          alert('Section deleted successfully!');
+        } else {
+          alert(`Failed to delete section: ${response.message}`);
+        }
+      } catch (error) {
+        console.error('Failed to delete section:', error);
+        alert('Failed to delete section. Please try again.');
+      }
+    }
+  };
+
+  const openEditSectionModal = (section: Section) => {
+    setSelectedSectionForEdit(section);
+    setSectionFormData({
+      title: section.title,
+      description: section.description || '',
+      questionsCount: section.questions_count,
+      sectionOrder: section.section_order
+    });
+    setIsEditSectionModalOpen(true);
+  };
+
   const filteredQuestions = questions.filter(question =>
     question.text.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -288,6 +403,15 @@ export function Questions() {
             <p className="text-gray-600 mt-2">Manage questions for your surveys</p>
           </div>
           <div className="flex items-center space-x-3">
+            <Button
+              variant="secondary"
+              onClick={() => setIsSectionModalOpen(true)}
+              className="flex items-center space-x-2"
+              disabled={!selectedSurvey}
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Section</span>
+            </Button>
             <Button
               variant="secondary"
               onClick={() => setIsUploadModalOpen(true)}
@@ -332,19 +456,35 @@ export function Questions() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Section
               </label>
-              <select
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                disabled={!selectedSurvey}
-                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-              >
-                <option value="">Choose a section...</option>
-                {sections.map((section) => (
-                  <option key={section.id} value={section.id}>
-                    {section.title}
-                  </option>
-                ))}
-              </select>
+              <div className="flex items-center space-x-2">
+                <select
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  disabled={!selectedSurvey}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="">Choose a section...</option>
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.title} ({section.questions_count} questions)
+                    </option>
+                  ))}
+                </select>
+                {selectedSection && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const section = sections.find(s => s.id === selectedSection);
+                      if (section) openEditSectionModal(section);
+                    }}
+                    className="flex items-center space-x-1"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Edit</span>
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           
