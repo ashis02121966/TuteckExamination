@@ -50,6 +50,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Get the current session
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
           
+          // If there's a session error (like invalid refresh token), clear the session
+          if (sessionError) {
+            console.info('Session error detected, clearing auth state:', sessionError);
+            try {
+              await supabase.auth.signOut();
+            } catch (signOutError) {
+              // Ignore sign out errors
+            }
+            setUser(null);
+            setIsLoading(false);
+            return;
+          }
+          
           if (session && session.user && !sessionError) {
             // We have a valid Supabase session, fetch user details from database
             const { data: userData, error: userDataError } = await supabase
