@@ -1,55 +1,34 @@
 import { supabase, supabaseAdmin, isDemoMode } from '../lib/supabase';
+import { User, Role, Survey, Question, TestSession, TestResult, Certificate, SystemSettings, EnumeratorDashboard, SupervisorDashboard, RODashboard, ZODashboard, Dashboard, AnalyticsData, AnalyticsFilter, EnumeratorStatus, ApiResponse } from '../types';
 import bcrypt from 'bcryptjs';
-import { 
-  User, Role, Survey, Question, TestSession, TestResult, 
-  Certificate, Dashboard, EnumeratorDashboard, SupervisorDashboard,
-  RODashboard, ZODashboard, SystemSettings, ApiResponse,
-  EnumeratorStatus, AnalyticsData, AnalyticsFilter
-} from '../types';
 import { ActivityLogger } from './activityLogger';
 
 // Base API class with common functionality
 class BaseApi {
-  protected async handleResponse<T>(promise: Promise<any>): Promise<ApiResponse<T>> {
-    try {
-      const { data, error } = await promise;
-      
-      if (error) {
-        console.error('API Error:', error);
-        return {
-          success: false,
-          message: error.message || 'An error occurred',
-          data: undefined
-        };
-      }
-      
-      return {
-        success: true,
-        message: 'Operation completed successfully',
-        data
-      };
-    } catch (error) {
-      console.error('API Exception:', error);
+  protected async handleResponse<T>(response: any): Promise<ApiResponse<T>> {
+    if (response.error) {
+      console.error('API Error:', response.error);
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        message: response.error.message || 'An error occurred',
         data: undefined
       };
     }
+    
+    return {
+      success: true,
+      message: 'Operation completed successfully',
+      data: response.data
+    };
   }
 
-  protected getClient() {
-    if (isDemoMode) {
-      throw new Error('Supabase is not configured. Please set up your Supabase credentials.');
-    }
-    return supabase!;
-  }
-
-  protected getAdminClient() {
-    if (isDemoMode) {
-      throw new Error('Supabase is not configured. Please set up your Supabase credentials.');
-    }
-    return supabaseAdmin!;
+  protected async handleError(error: any): Promise<ApiResponse<any>> {
+    console.error('API Exception:', error);
+    return {
+      success: false,
+      message: error.message || 'An unexpected error occurred',
+      data: undefined
+    };
   }
 }
 
@@ -60,20 +39,20 @@ class AuthApi extends BaseApi {
       if (isDemoMode) {
         return {
           success: false,
-          message: 'Demo mode: Please configure Supabase to enable authentication'
+          message: 'Demo mode: Supabase not configured. Please set up your Supabase credentials.'
         };
       }
 
       console.log('AuthApi: Attempting login for:', email);
-      
-      // First, try to authenticate with Supabase Auth
-      const { data: authData, error: authError } = await this.getClient().auth.signInWithPassword({
+
+      // First, try to sign in with Supabase Auth
+      const { data: authData, error: authError } = await supabase!.auth.signInWithPassword({
         email,
         password
       });
 
       if (authError) {
-        console.error('AuthApi: Supabase auth failed:', authError);
+        console.error('AuthApi: Supabase auth error:', authError);
         return {
           success: false,
           message: authError.message || 'Invalid email or password'
@@ -89,8 +68,8 @@ class AuthApi extends BaseApi {
 
       console.log('AuthApi: Supabase auth successful, fetching user profile...');
 
-      // Fetch user profile with role information
-      const { data: userData, error: userError } = await this.getClient()
+      // Get user profile from our custom users table
+      const { data: userData, error: userError } = await supabase!
         .from('users')
         .select(`
           *,
@@ -100,7 +79,7 @@ class AuthApi extends BaseApi {
         .single();
 
       if (userError || !userData) {
-        console.error('AuthApi: Failed to fetch user profile:', userError);
+        console.error('AuthApi: User profile fetch error:', userError);
         return {
           success: false,
           message: 'User profile not found'
@@ -110,7 +89,7 @@ class AuthApi extends BaseApi {
       console.log('AuthApi: User profile fetched successfully');
 
       // Update last login
-      await this.getClient()
+      await supabase!
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('id', authData.user.id);
@@ -155,11 +134,7 @@ class AuthApi extends BaseApi {
         }
       };
     } catch (error) {
-      console.error('AuthApi: Login exception:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Login failed'
-      };
+      return this.handleError(error);
     }
   }
 
@@ -169,474 +144,109 @@ class AuthApi extends BaseApi {
         return { success: true, message: 'Logged out (demo mode)' };
       }
 
-      const { error } = await this.getClient().auth.signOut();
-      
-      if (error) {
-        console.error('Logout error:', error);
-        return {
-          success: false,
-          message: error.message
-        };
-      }
+      const { error } = await supabase!.auth.signOut();
+      if (error) throw error;
 
-      return {
-        success: true,
-        message: 'Logged out successfully'
-      };
+      return { success: true, message: 'Logged out successfully' };
     } catch (error) {
-      console.error('Logout exception:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Logout failed'
-      };
+      return this.handleError(error);
     }
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<void>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Password change not available'
-        };
+        return { success: false, message: 'Password change not available in demo mode' };
       }
 
-      const { error } = await this.getClient().auth.updateUser({
+      const { error } = await supabase!.auth.updateUser({
         password: newPassword
       });
 
-      if (error) {
-        return {
-          success: false,
-          message: error.message
-        };
-      }
+      if (error) throw error;
 
-      return {
-        success: true,
-        message: 'Password changed successfully'
-      };
+      return { success: true, message: 'Password changed successfully' };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Password change failed'
-      };
+      return this.handleError(error);
     }
   }
 }
 
-// Survey API
-class SurveyApi extends BaseApi {
-  async getSurveys(): Promise<ApiResponse<Survey[]>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: []
-        };
-      }
-
-      const { data, error } = await this.getClient()
-        .from('surveys')
-        .select(`
-          *,
-          survey_sections(*)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Failed to fetch surveys:', error);
-        return {
-          success: false,
-          message: error.message,
-          data: []
-        };
-      }
-
-      const surveys: Survey[] = (data || []).map((survey: any) => ({
-        id: survey.id,
-        title: survey.title,
-        description: survey.description,
-        targetDate: new Date(survey.target_date),
-        duration: survey.duration,
-        totalQuestions: survey.total_questions,
-        passingScore: survey.passing_score,
-        maxAttempts: survey.max_attempts,
-        isActive: survey.is_active,
-        assignedZones: survey.assigned_zones || [],
-        assignedRegions: survey.assigned_regions || [],
-        sections: (survey.survey_sections || []).map((section: any) => ({
-          id: section.id,
-          surveyId: section.survey_id,
-          title: section.title,
-          description: section.description,
-          questionsCount: section.questions_count,
-          order: section.section_order,
-          questions: []
-        })),
-        createdAt: new Date(survey.created_at),
-        updatedAt: new Date(survey.updated_at),
-        createdBy: survey.created_by
-      }));
-
-      return {
-        success: true,
-        message: 'Surveys loaded successfully',
-        data: surveys
-      };
-    } catch (error) {
-      console.error('Exception in getSurveys:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load surveys',
-        data: []
-      };
-    }
-  }
-
-  async createSurvey(surveyData: any): Promise<ApiResponse<Survey>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot create surveys'
-        };
-      }
-
-      const { data, error } = await this.getClient()
-        .from('surveys')
-        .insert({
-          title: surveyData.title,
-          description: surveyData.description,
-          target_date: surveyData.targetDate.toISOString().split('T')[0],
-          duration: surveyData.duration,
-          total_questions: surveyData.totalQuestions,
-          passing_score: surveyData.passingScore,
-          max_attempts: surveyData.maxAttempts,
-          assigned_zones: surveyData.assignedZones || [],
-          assigned_regions: surveyData.assignedRegions || [],
-          created_by: surveyData.createdBy,
-          is_active: true
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Failed to create survey:', error);
-        return {
-          success: false,
-          message: error.message
-        };
-      }
-
-      const survey: Survey = {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        targetDate: new Date(data.target_date),
-        duration: data.duration,
-        totalQuestions: data.total_questions,
-        passingScore: data.passing_score,
-        maxAttempts: data.max_attempts,
-        isActive: data.is_active,
-        assignedZones: data.assigned_zones || [],
-        assignedRegions: data.assigned_regions || [],
-        sections: [],
-        createdAt: new Date(data.created_at),
-        updatedAt: new Date(data.updated_at),
-        createdBy: data.created_by
-      };
-
-      // Log activity
-      await ActivityLogger.logSurveyCreated(surveyData.createdBy, data.id, data.title);
-
-      return {
-        success: true,
-        message: 'Survey created successfully',
-        data: survey
-      };
-    } catch (error) {
-      console.error('Exception in createSurvey:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to create survey'
-      };
-    }
-  }
-
-  async updateSurvey(surveyId: string, surveyData: any): Promise<ApiResponse<Survey>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot update surveys'
-        };
-      }
-
-      console.log('Updating survey:', surveyId, 'with data:', surveyData);
-
-      const updateData: any = {
-        title: surveyData.title,
-        description: surveyData.description,
-        duration: surveyData.duration,
-        total_questions: surveyData.totalQuestions,
-        passing_score: surveyData.passingScore,
-        max_attempts: surveyData.maxAttempts,
-        updated_at: new Date().toISOString()
-      };
-
-      // Handle date conversion
-      if (surveyData.targetDate) {
-        if (surveyData.targetDate instanceof Date) {
-          updateData.target_date = surveyData.targetDate.toISOString().split('T')[0];
-        } else {
-          updateData.target_date = surveyData.targetDate;
-        }
-      }
-
-      // Handle zone and region assignments
-      if (surveyData.assignedZones !== undefined) {
-        updateData.assigned_zones = surveyData.assignedZones;
-      }
-      if (surveyData.assignedRegions !== undefined) {
-        updateData.assigned_regions = surveyData.assignedRegions;
-      }
-
-      // Handle isActive status
-      if (surveyData.isActive !== undefined) {
-        updateData.is_active = surveyData.isActive;
-      }
-
-      console.log('Final update data:', updateData);
-
-      const { data, error } = await this.getClient()
-        .from('surveys')
-        .update(updateData)
-        .eq('id', surveyId)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Failed to update survey:', error);
-        return {
-          success: false,
-          message: error.message
-        };
-      }
-
-      console.log('Survey updated successfully:', data);
-
-      const survey: Survey = {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        targetDate: new Date(data.target_date),
-        duration: data.duration,
-        totalQuestions: data.total_questions,
-        passingScore: data.passing_score,
-        maxAttempts: data.max_attempts,
-        isActive: data.is_active,
-        assignedZones: data.assigned_zones || [],
-        assignedRegions: data.assigned_regions || [],
-        sections: [],
-        createdAt: new Date(data.created_at),
-        updatedAt: new Date(data.updated_at),
-        createdBy: data.created_by
-      };
-
-      // Log activity
-      const currentUser = JSON.parse(localStorage.getItem('userData') || '{}');
-      if (currentUser.id) {
-        await ActivityLogger.logSurveyUpdated(currentUser.id, data.id, data.title);
-      }
-
-      return {
-        success: true,
-        message: 'Survey updated successfully',
-        data: survey
-      };
-    } catch (error) {
-      console.error('Exception in updateSurvey:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to update survey'
-      };
-    }
-  }
-
-  async deleteSurvey(surveyId: string): Promise<ApiResponse<void>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot delete surveys'
-        };
-      }
-
-      // Get survey title for logging
-      const { data: surveyData } = await this.getClient()
-        .from('surveys')
-        .select('title')
-        .eq('id', surveyId)
-        .single();
-
-      const { error } = await this.getClient()
-        .from('surveys')
-        .delete()
-        .eq('id', surveyId);
-
-      if (error) {
-        console.error('Failed to delete survey:', error);
-        return {
-          success: false,
-          message: error.message
-        };
-      }
-
-      // Log activity
-      const currentUser = JSON.parse(localStorage.getItem('userData') || '{}');
-      if (currentUser.id && surveyData) {
-        await ActivityLogger.logSurveyDeleted(currentUser.id, surveyId, surveyData.title);
-      }
-
-      return {
-        success: true,
-        message: 'Survey deleted successfully'
-      };
-    } catch (error) {
-      console.error('Exception in deleteSurvey:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to delete survey'
-      };
-    }
-  }
-
-  async getSurveySections(surveyId: string): Promise<ApiResponse<any[]>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: []
-        };
-      }
-
-      const { data, error } = await this.getClient()
-        .from('survey_sections')
-        .select('*')
-        .eq('survey_id', surveyId)
-        .order('section_order');
-
-      if (error) {
-        console.error('Failed to fetch survey sections:', error);
-        return {
-          success: false,
-          message: error.message,
-          data: []
-        };
-      }
-
-      return {
-        success: true,
-        message: 'Survey sections loaded successfully',
-        data: data || []
-      };
-    } catch (error) {
-      console.error('Exception in getSurveySections:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load survey sections',
-        data: []
-      };
-    }
-  }
-}
-
-// User API
+// User Management API
 class UserApi extends BaseApi {
   async getUsers(): Promise<ApiResponse<User[]>> {
     try {
       if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: []
-        };
+        return { success: false, message: 'User management not available in demo mode' };
       }
 
-      const { data, error } = await supabaseAdmin
+      console.log('UserApi: Fetching users...');
+      const { data, error } = await supabase!
         .from('users')
         .select(`
           *,
-          role:roles(*),
-          role_id
+          role:roles(*)
         `)
-        .order('created_at', { ascending: false })
-        .eq('is_active', true);
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Failed to fetch users:', error);
+        console.error('UserApi: Error fetching users:', error);
+        throw error;
+      }
+
+      console.log('UserApi: Raw data from Supabase:', data);
+
+      if (!data || data.length === 0) {
+        console.log('UserApi: No users found in database');
         return {
-          success: false,
-          message: error.message,
+          success: true,
+          message: 'No users found. Initialize the database to create demo users.',
           data: []
         };
       }
 
-      const users: User[] = (data || []).map((user: any) => ({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        roleId: user.role_id,
+      const users: User[] = data.map((userData: any) => ({
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        roleId: userData.role_id,
         role: {
-          id: user.role.id,
-          name: user.role.name,
-          description: user.role.description,
-          level: user.role.level,
-          isActive: user.role.is_active,
-          createdAt: new Date(user.role.created_at),
-          updatedAt: new Date(user.role.updated_at)
+          id: userData.role.id,
+          name: userData.role.name,
+          description: userData.role.description,
+          level: userData.role.level,
+          isActive: userData.role.is_active,
+          createdAt: new Date(userData.role.created_at),
+          updatedAt: new Date(userData.role.updated_at)
         },
-        isActive: user.is_active,
-        jurisdiction: user.jurisdiction,
-        zone: user.zone,
-        region: user.region,
-        district: user.district,
-        employeeId: user.employee_id,
-        phoneNumber: user.phone_number,
-        createdAt: new Date(user.created_at),
-        updatedAt: new Date(user.updated_at),
-        lastLogin: user.last_login ? new Date(user.last_login) : undefined
+        isActive: userData.is_active,
+        jurisdiction: userData.jurisdiction,
+        zone: userData.zone,
+        region: userData.region,
+        district: userData.district,
+        employeeId: userData.employee_id,
+        phoneNumber: userData.phone_number,
+        createdAt: new Date(userData.created_at),
+        updatedAt: new Date(userData.updated_at),
+        lastLogin: userData.last_login ? new Date(userData.last_login) : undefined
       }));
 
-      return {
-        success: true,
-        message: 'Users loaded successfully',
-        data: users
-      };
+      console.log('UserApi: Processed users:', users);
+      return { success: true, message: 'Users fetched successfully', data: users };
     } catch (error) {
-      console.error('Exception in getUsers:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load users',
-        data: []
-      };
+      console.error('UserApi: Exception in getUsers:', error);
+      return this.handleError(error);
     }
   }
 
   async createUser(userData: any): Promise<ApiResponse<User>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot create users'
-        };
+        return { success: false, message: 'User creation not available in demo mode' };
       }
 
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } = await this.getAdminClient().auth.admin.createUser({
+      // Create user in Supabase Auth first
+      const { data: authData, error: authError } = await supabaseAdmin!.auth.admin.createUser({
         email: userData.email,
         password: userData.password,
         email_confirm: true,
@@ -645,19 +255,13 @@ class UserApi extends BaseApi {
         }
       });
 
-      if (authError) {
-        console.error('Failed to create auth user:', authError);
-        return {
-          success: false,
-          message: authError.message
-        };
-      }
+      if (authError) throw authError;
 
       // Hash password for custom users table
       const hashedPassword = bcrypt.hashSync(userData.password, 10);
 
-      // Create user profile
-      const { data: profileData, error: profileError } = await this.getClient()
+      // Create user profile in custom users table
+      const { data, error } = await supabaseAdmin!
         .from('users')
         .insert({
           id: authData.user.id,
@@ -678,102 +282,7 @@ class UserApi extends BaseApi {
         `)
         .single();
 
-      if (profileError) {
-        console.error('Failed to create user profile:', profileError);
-        return {
-          success: false,
-          message: profileError.message
-        };
-      }
-
-      const user: User = {
-        id: profileData.id,
-        email: profileData.email,
-        name: profileData.name,
-        roleId: profileData.role_id,
-        role: {
-          id: profileData.role.id,
-          name: profileData.role.name,
-          description: profileData.role.description,
-          level: profileData.role.level,
-          isActive: profileData.role.is_active,
-          createdAt: new Date(profileData.role.created_at),
-          updatedAt: new Date(profileData.role.updated_at)
-        },
-        isActive: profileData.is_active,
-        jurisdiction: profileData.jurisdiction,
-        zone: profileData.zone,
-        region: profileData.region,
-        district: profileData.district,
-        employeeId: profileData.employee_id,
-        phoneNumber: profileData.phone_number,
-        createdAt: new Date(profileData.created_at),
-        updatedAt: new Date(profileData.updated_at)
-      };
-
-      return {
-        success: true,
-        message: `User created successfully! Login credentials:\nEmail: ${userData.email}\nPassword: ${userData.password}`,
-        data: user
-      };
-    } catch (error) {
-      console.error('Exception in createUser:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to create user'
-      };
-    }
-  }
-
-  async updateUser(userId: string, userData: any): Promise<ApiResponse<User>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot update users'
-        };
-      }
-
-      const updateData: any = {
-        name: userData.name,
-        email: userData.email,
-        role_id: userData.roleId,
-        jurisdiction: userData.jurisdiction,
-        zone: userData.zone,
-        region: userData.region,
-        district: userData.district,
-        employee_id: userData.employeeId,
-        phone_number: userData.phoneNumber,
-        updated_at: new Date().toISOString()
-      };
-
-      // Only update password if provided
-      if (userData.password && userData.password.trim()) {
-        updateData.password_hash = bcrypt.hashSync(userData.password, 10);
-        
-        // Also update in Supabase Auth
-        await this.getAdminClient().auth.admin.updateUserById(userId, {
-          password: userData.password
-        });
-      }
-
-      const { data, error } = await this.getClient()
-        .from('users')
-        .update(updateData)
-        .eq('id', userId)
-        .select(`
-          *,
-          role:roles(*)
-        `)
-        .single();
-
-      if (error) {
-        console.error('Failed to update user:', error);
-        return {
-          success: false,
-          message: error.message
-        };
-      }
+      if (error) throw error;
 
       const user: User = {
         id: data.id,
@@ -802,126 +311,150 @@ class UserApi extends BaseApi {
 
       return {
         success: true,
-        message: 'User updated successfully',
+        message: `User created successfully! Login credentials:\nEmail: ${userData.email}\nPassword: ${userData.password}\n\nThe user should change their password on first login.`,
         data: user
       };
     } catch (error) {
-      console.error('Exception in updateUser:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to update user'
-      };
+      return this.handleError(error);
     }
   }
 
-  async deleteUser(userId: string): Promise<ApiResponse<void>> {
+  async updateUser(id: string, userData: any): Promise<ApiResponse<User>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot delete users'
-        };
+        return { success: false, message: 'User updates not available in demo mode' };
+      }
+
+      const updateData: any = {
+        name: userData.name,
+        email: userData.email,
+        role_id: userData.roleId,
+        jurisdiction: userData.jurisdiction,
+        zone: userData.zone,
+        region: userData.region,
+        district: userData.district,
+        employee_id: userData.employeeId,
+        phone_number: userData.phoneNumber,
+        updated_at: new Date().toISOString()
+      };
+
+      // Only update password if provided
+      if (userData.password && userData.password.trim()) {
+        updateData.password_hash = bcrypt.hashSync(userData.password, 10);
+        
+        // Also update in Supabase Auth
+        await supabaseAdmin!.auth.admin.updateUserById(id, {
+          password: userData.password
+        });
+      }
+
+      const { data, error } = await supabaseAdmin!
+        .from('users')
+        .update(updateData)
+        .eq('id', id)
+        .select(`
+          *,
+          role:roles(*)
+        `)
+        .single();
+
+      if (error) throw error;
+
+      const user: User = {
+        id: data.id,
+        email: data.email,
+        name: data.name,
+        roleId: data.role_id,
+        role: {
+          id: data.role.id,
+          name: data.role.name,
+          description: data.role.description,
+          level: data.role.level,
+          isActive: data.role.is_active,
+          createdAt: new Date(data.role.created_at),
+          updatedAt: new Date(data.role.updated_at)
+        },
+        isActive: data.is_active,
+        jurisdiction: data.jurisdiction,
+        zone: data.zone,
+        region: data.region,
+        district: data.district,
+        employeeId: data.employee_id,
+        phoneNumber: data.phone_number,
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at)
+      };
+
+      return { success: true, message: 'User updated successfully', data: user };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async deleteUser(id: string): Promise<ApiResponse<void>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'User deletion not available in demo mode' };
       }
 
       // Delete from custom users table first
-      const { error: profileError } = await this.getClient()
+      const { error: userError } = await supabaseAdmin!
         .from('users')
         .delete()
-        .eq('id', userId);
+        .eq('id', id);
 
-      if (profileError) {
-        console.error('Failed to delete user profile:', profileError);
-        return {
-          success: false,
-          message: profileError.message
-        };
-      }
+      if (userError) throw userError;
 
       // Delete from Supabase Auth
-      const { error: authError } = await this.getAdminClient().auth.admin.deleteUser(userId);
+      const { error: authError } = await supabaseAdmin!.auth.admin.deleteUser(id);
+      if (authError) throw authError;
 
-      if (authError) {
-        console.error('Failed to delete auth user:', authError);
-        return {
-          success: false,
-          message: authError.message
-        };
-      }
-
-      return {
-        success: true,
-        message: 'User deleted successfully'
-      };
+      return { success: true, message: 'User deleted successfully' };
     } catch (error) {
-      console.error('Exception in deleteUser:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to delete user'
-      };
+      return this.handleError(error);
     }
   }
 }
 
-// Role API
+// Role Management API
 class RoleApi extends BaseApi {
   async getRoles(): Promise<ApiResponse<Role[]>> {
     try {
       if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: []
-        };
+        return { success: false, message: 'Role management not available in demo mode' };
       }
 
-      const { data, error } = await this.getClient()
+      const { data, error } = await supabase!
         .from('roles')
         .select('*')
-        .order('level');
+        .order('level', { ascending: true });
 
-      if (error) {
-        return {
-          success: false,
-          message: error.message,
-          data: []
-        };
-      }
+      if (error) throw error;
 
-      const roles: Role[] = (data || []).map((role: any) => ({
-        id: role.id,
-        name: role.name,
-        description: role.description,
-        level: role.level,
-        isActive: role.is_active,
-        menuAccess: role.menu_access,
-        createdAt: new Date(role.created_at),
-        updatedAt: new Date(role.updated_at)
+      const roles: Role[] = (data || []).map((roleData: any) => ({
+        id: roleData.id,
+        name: roleData.name,
+        description: roleData.description,
+        level: roleData.level,
+        isActive: roleData.is_active,
+        menuAccess: roleData.menu_access,
+        createdAt: new Date(roleData.created_at),
+        updatedAt: new Date(roleData.updated_at)
       }));
 
-      return {
-        success: true,
-        message: 'Roles loaded successfully',
-        data: roles
-      };
+      return { success: true, message: 'Roles fetched successfully', data: roles };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load roles',
-        data: []
-      };
+      return this.handleError(error);
     }
   }
 
   async createRole(roleData: any): Promise<ApiResponse<Role>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot create roles'
-        };
+        return { success: false, message: 'Role creation not available in demo mode' };
       }
 
-      const { data, error } = await this.getClient()
+      const { data, error } = await supabase!
         .from('roles')
         .insert({
           name: roleData.name,
@@ -932,12 +465,7 @@ class RoleApi extends BaseApi {
         .select()
         .single();
 
-      if (error) {
-        return {
-          success: false,
-          message: error.message
-        };
-      }
+      if (error) throw error;
 
       const role: Role = {
         id: data.id,
@@ -949,45 +477,30 @@ class RoleApi extends BaseApi {
         updatedAt: new Date(data.updated_at)
       };
 
-      return {
-        success: true,
-        message: 'Role created successfully',
-        data: role
-      };
+      return { success: true, message: 'Role created successfully', data: role };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to create role'
-      };
+      return this.handleError(error);
     }
   }
 
-  async updateRole(roleId: string, roleData: any): Promise<ApiResponse<Role>> {
+  async updateRole(id: string, roleData: any): Promise<ApiResponse<Role>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot update roles'
-        };
+        return { success: false, message: 'Role updates not available in demo mode' };
       }
 
-      const { data, error } = await this.getClient()
+      const { data, error } = await supabase!
         .from('roles')
         .update({
           name: roleData.name,
           description: roleData.description,
           updated_at: new Date().toISOString()
         })
-        .eq('id', roleId)
+        .eq('id', id)
         .select()
         .single();
 
-      if (error) {
-        return {
-          success: false,
-          message: error.message
-        };
-      }
+      if (error) throw error;
 
       const role: Role = {
         id: data.id,
@@ -999,70 +512,55 @@ class RoleApi extends BaseApi {
         updatedAt: new Date(data.updated_at)
       };
 
-      return {
-        success: true,
-        message: 'Role updated successfully',
-        data: role
-      };
+      return { success: true, message: 'Role updated successfully', data: role };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to update role'
-      };
+      return this.handleError(error);
     }
   }
 
-  async deleteRole(roleId: string): Promise<ApiResponse<void>> {
+  async deleteRole(id: string): Promise<ApiResponse<void>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot delete roles'
-        };
+        return { success: false, message: 'Role deletion not available in demo mode' };
       }
 
-      const { error } = await this.getClient()
+      const { error } = await supabase!
         .from('roles')
         .delete()
-        .eq('id', roleId);
+        .eq('id', id);
 
-      if (error) {
-        return {
-          success: false,
-          message: error.message
-        };
-      }
+      if (error) throw error;
 
-      return {
-        success: true,
-        message: 'Role deleted successfully'
-      };
+      return { success: true, message: 'Role deleted successfully' };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to delete role'
-      };
+      return this.handleError(error);
     }
   }
 
   async getPermissions(): Promise<ApiResponse<any[]>> {
-    return {
-      success: true,
-      message: 'Permissions loaded',
-      data: []
-    };
+    try {
+      // Return mock permissions for now
+      const permissions = [
+        { id: '1', name: 'Create Users', resource: 'users', action: 'create', description: 'Create new users', module: 'User Management' },
+        { id: '2', name: 'Edit Users', resource: 'users', action: 'update', description: 'Edit existing users', module: 'User Management' },
+        { id: '3', name: 'Delete Users', resource: 'users', action: 'delete', description: 'Delete users', module: 'User Management' },
+        { id: '4', name: 'View Surveys', resource: 'surveys', action: 'read', description: 'View surveys', module: 'Survey Management' },
+        { id: '5', name: 'Create Surveys', resource: 'surveys', action: 'create', description: 'Create new surveys', module: 'Survey Management' }
+      ];
+
+      return { success: true, message: 'Permissions fetched successfully', data: permissions };
+    } catch (error) {
+      return this.handleError(error);
+    }
   }
 
   async updateRoleMenuAccess(roleId: string, menuAccess: string[]): Promise<ApiResponse<void>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot update role menu access'
-        };
+        return { success: false, message: 'Menu access updates not available in demo mode' };
       }
 
-      const { error } = await this.getClient()
+      const { error } = await supabase!
         .from('roles')
         .update({
           menu_access: menuAccess,
@@ -1070,304 +568,315 @@ class RoleApi extends BaseApi {
         })
         .eq('id', roleId);
 
-      if (error) {
-        return {
-          success: false,
-          message: error.message
-        };
-      }
+      if (error) throw error;
 
-      return {
-        success: true,
-        message: 'Menu access updated successfully'
-      };
+      return { success: true, message: 'Menu access updated successfully' };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to update menu access'
-      };
+      return this.handleError(error);
     }
   }
 }
 
-// Dashboard APIs
-class DashboardApi extends BaseApi {
-  async getDashboardData(): Promise<ApiResponse<Dashboard>> {
+// Survey Management API
+class SurveyApi extends BaseApi {
+  async getSurveys(): Promise<ApiResponse<Survey[]>> {
     try {
       if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: {
-            totalUsers: 0,
-            totalSurveys: 0,
-            totalAttempts: 0,
-            averageScore: 0,
-            passRate: 0,
-            recentActivity: [],
-            performanceByRole: [],
-            performanceBySurvey: [],
-            monthlyTrends: []
-          }
-        };
+        return { success: false, message: 'Survey management not available in demo mode' };
       }
 
-      // Get total counts using admin client to bypass RLS
-      const { data: usersData, error: usersError } = await this.getAdminClient()
-        .from('users')
-        .select('id, is_active')
-        .eq('is_active', true);
-      
-      const { data: surveysData, error: surveysError } = await this.getAdminClient()
-        .from('surveys')
-        .select('id, is_active')
-        .eq('is_active', true);
-      
-      const { data: attemptsData, error: attemptsError } = await this.getAdminClient()
-        .from('test_results')
-        .select('id, score, is_passed');
-      
-      if (usersError || surveysError || attemptsError) {
-        console.error('Error fetching dashboard counts:', { usersError, surveysError, attemptsError });
-        throw new Error('Failed to fetch dashboard data');
-      }
-      
-      const totalUsers = usersData?.length || 0;
-      const totalSurveys = surveysData?.length || 0;
-      const totalAttempts = attemptsData?.length || 0;
-      const passedAttempts = attemptsData?.filter(attempt => attempt.is_passed).length || 0;
-      const totalScore = attemptsData?.reduce((sum, attempt) => sum + attempt.score, 0) || 0;
-      const averageScore = totalAttempts > 0 ? totalScore / totalAttempts : 0;
-      const passRate = totalAttempts > 0 ? (passedAttempts / totalAttempts) * 100 : 0;
-
-      console.log('Dashboard stats:', { totalUsers, totalSurveys, totalAttempts, passRate, averageScore });
-
-      // Get performance by role
-      const { data: rolePerformance } = await this.getAdminClient()
-        .from('test_results')
-        .select(`
-          score,
-          is_passed,
-          user:users!inner(
-            role:roles!inner(name)
-          )
-        `);
-
-      const performanceByRole = this.calculatePerformanceByRole(rolePerformance || []);
-
-      // Get performance by survey
-      const { data: surveyPerformance } = await this.getAdminClient()
-        .from('test_results')
-        .select(`
-          score,
-          is_passed,
-          survey:surveys!inner(title)
-        `);
-
-      const performanceBySurvey = this.calculatePerformanceBySurvey(surveyPerformance || []);
-
-      // Get recent activity
-      const { data: recentActivity } = await this.getAdminClient()
-        .from('activity_logs')
-        .select(`
-          id,
-          activity_type,
-          description,
-          created_at,
-          user:users(name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      const activities = (recentActivity || []).map((activity: any) => ({
-        id: activity.id,
-        type: activity.activity_type,
-        description: activity.description,
-        userId: activity.user_id,
-        userName: activity.user?.name || 'Unknown User',
-        timestamp: new Date(activity.created_at)
-      }));
-
-      const dashboardData: Dashboard = {
-        totalUsers,
-        totalSurveys,
-        totalAttempts,
-        averageScore,
-        passRate,
-        recentActivity: activities,
-        performanceByRole,
-        performanceBySurvey,
-        monthlyTrends: [] // TODO: Implement monthly trends
-      };
-
-      console.log('Dashboard data prepared:', dashboardData);
-      return { success: true, data: dashboardData, message: 'Dashboard data fetched successfully' };
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      return { success: false, message: 'Failed to fetch dashboard data' };
-    }
-  }
-
-  private calculatePerformanceByRole(data: any[]): any[] {
-    // Implementation for calculating performance by role
-    return [];
-  }
-
-  private calculatePerformanceBySurvey(data: any[]): any[] {
-    // Implementation for calculating performance by survey
-    return [];
-  }
-}
-
-// Enumerator Dashboard API
-class EnumeratorDashboardApi extends BaseApi {
-  async getDashboardData(): Promise<ApiResponse<EnumeratorDashboard>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: {
-            availableTests: [],
-            completedTests: [],
-            upcomingTests: [],
-            certificates: [],
-            overallProgress: 0,
-            averageScore: 0,
-            totalAttempts: 0,
-            passedTests: 0
-          }
-        };
-      }
-
-      // Get current user
-      const { data: { user: authUser } } = await this.getClient().auth.getUser();
-      if (!authUser) {
-        throw new Error('User not authenticated');
-      }
-
-      // Get user profile with zone/region info
-      const { data: userProfile } = await this.getClient()
-        .from('users')
-        .select('zone, region')
-        .eq('id', authUser.id)
-        .single();
-
-      // Fetch available surveys based on user's zone/region
-      const { data: surveys, error: surveysError } = await this.getClient()
+      const { data, error } = await supabase!
         .from('surveys')
         .select('*')
-        .eq('is_active', true);
+        .order('created_at', { ascending: false });
 
-      if (surveysError) {
-        throw new Error(surveysError.message);
-      }
+      if (error) throw error;
 
-      // Filter surveys based on zone/region assignment
-      const availableSurveys = (surveys || []).filter((survey: any) => {
-        const assignedZones = survey.assigned_zones || [];
-        const assignedRegions = survey.assigned_regions || [];
-        
-        // If no zones/regions assigned, survey is available to all
-        if (assignedZones.length === 0 && assignedRegions.length === 0) {
-          return true;
-        }
-        
-        // Check if user's zone/region matches
-        const userZone = userProfile?.zone;
-        const userRegion = userProfile?.region;
-        
-        const zoneMatch = assignedZones.length === 0 || (userZone && assignedZones.includes(userZone));
-        const regionMatch = assignedRegions.length === 0 || (userRegion && assignedRegions.includes(userRegion));
-        
-        return zoneMatch || regionMatch;
-      });
-
-      const availableTests = availableSurveys.map((survey: any) => ({
-        surveyId: survey.id,
-        title: survey.title,
-        description: survey.description,
-        targetDate: new Date(survey.target_date),
-        duration: survey.duration,
-        totalQuestions: survey.total_questions,
-        passingScore: survey.passing_score,
-        attemptsLeft: survey.max_attempts,
-        maxAttempts: survey.max_attempts,
-        isEligible: true
+      const surveys: Survey[] = (data || []).map((surveyData: any) => ({
+        id: surveyData.id,
+        title: surveyData.title,
+        description: surveyData.description,
+        targetDate: new Date(surveyData.target_date),
+        duration: surveyData.duration,
+        totalQuestions: surveyData.total_questions,
+        passingScore: surveyData.passing_score,
+        maxAttempts: surveyData.max_attempts,
+        isActive: surveyData.is_active,
+        assignedZones: surveyData.assigned_zones,
+        assignedRegions: surveyData.assigned_regions,
+        sections: [],
+        createdAt: new Date(surveyData.created_at),
+        updatedAt: new Date(surveyData.updated_at),
+        createdBy: surveyData.created_by
       }));
 
-      const dashboardData: EnumeratorDashboard = {
-        availableTests,
-        completedTests: [],
-        upcomingTests: availableTests.map(test => ({
-          surveyId: test.surveyId,
-          title: test.title,
-          targetDate: test.targetDate,
-          daysLeft: Math.ceil((test.targetDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
-          isOverdue: test.targetDate < new Date()
-        })),
-        certificates: [],
-        overallProgress: 0,
-        averageScore: 0,
-        totalAttempts: 0,
-        passedTests: 0
+      return { success: true, message: 'Surveys fetched successfully', data: surveys };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async createSurvey(surveyData: any): Promise<ApiResponse<Survey>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Survey creation not available in demo mode' };
+      }
+
+      const { data, error } = await supabase!
+        .from('surveys')
+        .insert({
+          title: surveyData.title,
+          description: surveyData.description,
+          target_date: surveyData.targetDate.toISOString().split('T')[0],
+          duration: surveyData.duration,
+          total_questions: surveyData.totalQuestions,
+          passing_score: surveyData.passingScore,
+          max_attempts: surveyData.maxAttempts,
+          assigned_zones: surveyData.assignedZones,
+          assigned_regions: surveyData.assignedRegions,
+          created_by: surveyData.createdBy
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const survey: Survey = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        targetDate: new Date(data.target_date),
+        duration: data.duration,
+        totalQuestions: data.total_questions,
+        passingScore: data.passing_score,
+        maxAttempts: data.max_attempts,
+        isActive: data.is_active,
+        assignedZones: data.assigned_zones,
+        assignedRegions: data.assigned_regions,
+        sections: [],
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at),
+        createdBy: data.created_by
       };
 
-      return {
-        success: true,
-        message: 'Dashboard data loaded successfully',
-        data: dashboardData
-      };
+      return { success: true, message: 'Survey created successfully', data: survey };
     } catch (error) {
-      console.error('Exception in enumerator getDashboardData:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load dashboard data'
+      return this.handleError(error);
+    }
+  }
+
+  async updateSurvey(id: string, surveyData: any): Promise<ApiResponse<Survey>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Survey updates not available in demo mode' };
+      }
+
+      const updateData: any = {
+        title: surveyData.title,
+        description: surveyData.description,
+        duration: surveyData.duration,
+        total_questions: surveyData.totalQuestions,
+        passing_score: surveyData.passingScore,
+        max_attempts: surveyData.maxAttempts,
+        updated_at: new Date().toISOString()
       };
+
+      if (surveyData.targetDate) {
+        updateData.target_date = surveyData.targetDate instanceof Date 
+          ? surveyData.targetDate.toISOString().split('T')[0]
+          : surveyData.targetDate;
+      }
+
+      if (surveyData.assignedZones !== undefined) {
+        updateData.assigned_zones = surveyData.assignedZones;
+      }
+
+      if (surveyData.assignedRegions !== undefined) {
+        updateData.assigned_regions = surveyData.assignedRegions;
+      }
+
+      if (surveyData.isActive !== undefined) {
+        updateData.is_active = surveyData.isActive;
+      }
+
+      const { data, error } = await supabase!
+        .from('surveys')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const survey: Survey = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        targetDate: new Date(data.target_date),
+        duration: data.duration,
+        totalQuestions: data.total_questions,
+        passingScore: data.passing_score,
+        maxAttempts: data.max_attempts,
+        isActive: data.is_active,
+        assignedZones: data.assigned_zones,
+        assignedRegions: data.assigned_regions,
+        sections: [],
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at),
+        createdBy: data.created_by
+      };
+
+      return { success: true, message: 'Survey updated successfully', data: survey };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async deleteSurvey(id: string): Promise<ApiResponse<void>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Survey deletion not available in demo mode' };
+      }
+
+      const { error } = await supabase!
+        .from('surveys')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      return { success: true, message: 'Survey deleted successfully' };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getSurveySections(surveyId: string): Promise<ApiResponse<any[]>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Survey sections not available in demo mode' };
+      }
+
+      const { data, error } = await supabase!
+        .from('survey_sections')
+        .select('*')
+        .eq('survey_id', surveyId)
+        .order('section_order', { ascending: true });
+
+      if (error) throw error;
+
+      return { success: true, message: 'Survey sections fetched successfully', data: data || [] };
+    } catch (error) {
+      return this.handleError(error);
     }
   }
 }
 
-// Test API
+// Question Management API
+class QuestionApi extends BaseApi {
+  async getQuestions(sectionId: string): Promise<ApiResponse<Question[]>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Questions not available in demo mode' };
+      }
+
+      const { data, error } = await supabase!
+        .from('questions')
+        .select(`
+          *,
+          options:question_options(*)
+        `)
+        .eq('section_id', sectionId)
+        .order('question_order', { ascending: true });
+
+      if (error) throw error;
+
+      const questions: Question[] = (data || []).map((questionData: any) => ({
+        id: questionData.id,
+        sectionId: questionData.section_id,
+        text: questionData.text,
+        type: questionData.question_type as 'multiple_choice' | 'single_choice',
+        complexity: questionData.complexity as 'easy' | 'medium' | 'hard',
+        points: questionData.points,
+        explanation: questionData.explanation,
+        order: questionData.question_order,
+        options: (questionData.options || []).map((option: any) => ({
+          id: option.id,
+          text: option.text,
+          isCorrect: option.is_correct
+        })),
+        correctAnswers: (questionData.options || [])
+          .filter((option: any) => option.is_correct)
+          .map((option: any) => option.id),
+        createdAt: new Date(questionData.created_at),
+        updatedAt: new Date(questionData.updated_at)
+      }));
+
+      return { success: true, message: 'Questions fetched successfully', data: questions };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+}
+
+// Test Management API
 class TestApi extends BaseApi {
   async createTestSession(surveyId: string): Promise<ApiResponse<TestSession>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot create test sessions'
-        };
+        return { success: false, message: 'Test sessions not available in demo mode' };
       }
 
-      const { data: { user: authUser } } = await this.getClient().auth.getUser();
+      // Get current user
+      const { data: { user: authUser } } = await supabase!.auth.getUser();
       if (!authUser) {
         throw new Error('User not authenticated');
       }
 
       // Get survey details
-      const { data: survey } = await this.getClient()
+      const { data: surveyData, error: surveyError } = await supabase!
         .from('surveys')
-        .select('duration')
+        .select('*')
         .eq('id', surveyId)
         .single();
 
-      const duration = survey?.duration || 35;
+      if (surveyError || !surveyData) {
+        throw new Error('Survey not found');
+      }
 
-      const { data, error } = await this.getClient()
+      // Check existing attempts
+      const { data: existingResults, error: resultsError } = await supabase!
+        .from('test_results')
+        .select('attempt_number')
+        .eq('user_id', authUser.id)
+        .eq('survey_id', surveyId)
+        .order('attempt_number', { ascending: false })
+        .limit(1);
+
+      if (resultsError) throw resultsError;
+
+      const nextAttemptNumber = existingResults && existingResults.length > 0 
+        ? existingResults[0].attempt_number + 1 
+        : 1;
+
+      if (nextAttemptNumber > surveyData.max_attempts) {
+        throw new Error('Maximum attempts exceeded');
+      }
+
+      // Create test session
+      const { data, error } = await supabase!
         .from('test_sessions')
         .insert({
           user_id: authUser.id,
           survey_id: surveyId,
-          time_remaining: duration * 60,
-          session_status: 'in_progress',
-          attempt_number: 1
+          time_remaining: surveyData.duration * 60, // Convert minutes to seconds
+          attempt_number: nextAttemptNumber,
+          session_status: 'in_progress'
         })
         .select()
         .single();
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw error;
 
       const session: TestSession = {
         id: data.id,
@@ -1381,73 +890,64 @@ class TestApi extends BaseApi {
         attemptNumber: data.attempt_number
       };
 
-      return {
-        success: true,
-        message: 'Test session created successfully',
-        data: session
-      };
+      return { success: true, message: 'Test session created successfully', data: session };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to create test session'
-      };
+      return this.handleError(error);
     }
   }
 
   async getSession(sessionId: string): Promise<ApiResponse<TestSession>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot load test sessions'
-        };
+        return { success: false, message: 'Test sessions not available in demo mode' };
       }
 
-      const { data, error } = await this.getClient()
+      const { data, error } = await supabase!
         .from('test_sessions')
-        .select('*')
+        .select(`
+          *,
+          answers:test_answers(*)
+        `)
         .eq('id', sessionId)
         .single();
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw error;
 
       const session: TestSession = {
         id: data.id,
         userId: data.user_id,
         surveyId: data.survey_id,
         startTime: new Date(data.start_time),
+        endTime: data.end_time ? new Date(data.end_time) : undefined,
         timeRemaining: data.time_remaining,
         currentQuestionIndex: data.current_question_index,
-        answers: [],
+        answers: (data.answers || []).map((answer: any) => ({
+          questionId: answer.question_id,
+          selectedOptions: answer.selected_options || [],
+          isCorrect: answer.is_correct,
+          timeSpent: answer.time_spent,
+          answered: answer.answered
+        })),
         status: data.session_status as any,
-        attemptNumber: data.attempt_number
+        attemptNumber: data.attempt_number,
+        score: data.score,
+        isPassed: data.is_passed,
+        completedAt: data.completed_at ? new Date(data.completed_at) : undefined
       };
 
-      return {
-        success: true,
-        message: 'Session loaded successfully',
-        data: session
-      };
+      return { success: true, message: 'Session fetched successfully', data: session };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load session'
-      };
+      return this.handleError(error);
     }
   }
 
   async updateSession(sessionId: string, updates: any): Promise<ApiResponse<void>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot update sessions'
-        };
+        return { success: false, message: 'Session updates not available in demo mode' };
       }
 
-      const { error } = await this.getClient()
+      const { error } = await supabase!
         .from('test_sessions')
         .update({
           current_question_index: updates.currentQuestionIndex,
@@ -1456,95 +956,291 @@ class TestApi extends BaseApi {
         })
         .eq('id', sessionId);
 
-      if (error) {
-        throw new Error(error.message);
+      if (error) throw error;
+
+      // Save answers if provided
+      if (updates.answers && updates.answers.length > 0) {
+        for (const answer of updates.answers) {
+          await this.saveAnswer(sessionId, answer.questionId, answer.selectedOptions);
+        }
       }
 
-      return {
-        success: true,
-        message: 'Session updated successfully'
-      };
+      return { success: true, message: 'Session updated successfully' };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to update session'
-      };
+      return this.handleError(error);
     }
   }
 
   async saveAnswer(sessionId: string, questionId: string, selectedOptions: string[]): Promise<ApiResponse<void>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot save answers'
-        };
+        return { success: false, message: 'Answer saving not available in demo mode' };
       }
 
-      const { error } = await this.getClient()
+      const { error } = await supabase!
         .from('test_answers')
         .upsert({
           session_id: sessionId,
           question_id: questionId,
           selected_options: selectedOptions,
-          answered: true,
+          answered: selectedOptions.length > 0,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'session_id,question_id'
         });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (error) throw error;
 
-      return {
-        success: true,
-        message: 'Answer saved successfully'
-      };
+      return { success: true, message: 'Answer saved successfully' };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to save answer'
-      };
+      return this.handleError(error);
     }
   }
 
-  async submitTest(sessionId: string): Promise<ApiResponse<any>> {
+  async submitTest(sessionId: string): Promise<ApiResponse<TestResult>> {
     try {
       if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot submit tests'
-        };
+        return { success: false, message: 'Test submission not available in demo mode' };
       }
 
-      // This would typically calculate scores and create test results
-      // For now, return a simple success response
-      return {
-        success: true,
-        message: 'Test submitted successfully',
-        data: {
-          score: 85,
-          isPassed: true,
-          certificateId: null
+      // Get session data
+      const { data: sessionData, error: sessionError } = await supabase!
+        .from('test_sessions')
+        .select(`
+          *,
+          survey:surveys(*),
+          answers:test_answers(*)
+        `)
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError || !sessionData) {
+        throw new Error('Session not found');
+      }
+
+      // Get all questions for the survey with their correct answers
+      const { data: sectionsData, error: sectionsError } = await supabase!
+        .from('survey_sections')
+        .select(`
+          *,
+          questions:questions(
+            *,
+            options:question_options(*)
+          )
+        `)
+        .eq('survey_id', sessionData.survey_id)
+        .order('section_order', { ascending: true });
+
+      if (sectionsError) throw sectionsError;
+
+      // Flatten all questions from all sections
+      const allQuestions = sectionsData.flatMap(section => 
+        section.questions.map((q: any) => ({
+          ...q,
+          sectionId: section.id,
+          sectionTitle: section.title
+        }))
+      );
+
+      // Calculate score
+      let correctAnswers = 0;
+      const totalQuestions = allQuestions.length;
+      const sectionScores: any[] = [];
+
+      // Group questions by section for section-wise scoring
+      const questionsBySection = allQuestions.reduce((acc: any, question: any) => {
+        if (!acc[question.sectionId]) {
+          acc[question.sectionId] = {
+            sectionId: question.sectionId,
+            sectionTitle: question.sectionTitle,
+            questions: []
+          };
         }
+        acc[question.sectionId].questions.push(question);
+        return acc;
+      }, {});
+
+      // Calculate section-wise scores
+      for (const sectionData of Object.values(questionsBySection) as any[]) {
+        let sectionCorrect = 0;
+        const sectionTotal = sectionData.questions.length;
+
+        for (const question of sectionData.questions) {
+          const userAnswer = sessionData.answers.find((a: any) => a.question_id === question.id);
+          const correctOptionIds = question.options
+            .filter((opt: any) => opt.is_correct)
+            .map((opt: any) => opt.id);
+
+          if (userAnswer && userAnswer.selected_options) {
+            const userSelectedOptions = userAnswer.selected_options;
+            
+            // Check if answer is correct
+            if (question.question_type === 'single_choice') {
+              if (userSelectedOptions.length === 1 && correctOptionIds.includes(userSelectedOptions[0])) {
+                correctAnswers++;
+                sectionCorrect++;
+              }
+            } else if (question.question_type === 'multiple_choice') {
+              const isCorrect = correctOptionIds.length === userSelectedOptions.length &&
+                correctOptionIds.every(id => userSelectedOptions.includes(id));
+              if (isCorrect) {
+                correctAnswers++;
+                sectionCorrect++;
+              }
+            }
+          }
+        }
+
+        const sectionScore = sectionTotal > 0 ? (sectionCorrect / sectionTotal) * 100 : 0;
+        sectionScores.push({
+          section_id: sectionData.sectionId,
+          section_title: sectionData.sectionTitle,
+          score: sectionScore,
+          total_questions: sectionTotal,
+          correct_answers: sectionCorrect
+        });
+      }
+
+      const finalScore = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+      const isPassed = finalScore >= sessionData.survey.passing_score;
+      const timeSpent = (sessionData.survey.duration * 60) - sessionData.time_remaining;
+
+      // Create test result
+      const { data: resultData, error: resultError } = await supabase!
+        .from('test_results')
+        .insert({
+          user_id: sessionData.user_id,
+          survey_id: sessionData.survey_id,
+          session_id: sessionId,
+          score: finalScore,
+          total_questions: totalQuestions,
+          correct_answers: correctAnswers,
+          is_passed: isPassed,
+          time_spent: timeSpent,
+          attempt_number: sessionData.attempt_number,
+          grade: this.calculateGrade(finalScore)
+        })
+        .select()
+        .single();
+
+      if (resultError) throw resultError;
+
+      // Create section scores
+      for (const sectionScore of sectionScores) {
+        await supabase!
+          .from('section_scores')
+          .insert({
+            result_id: resultData.id,
+            ...sectionScore
+          });
+      }
+
+      // Update session status
+      await supabase!
+        .from('test_sessions')
+        .update({
+          session_status: 'completed',
+          end_time: new Date().toISOString(),
+          score: finalScore,
+          is_passed: isPassed,
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+
+      // Create certificate if passed
+      let certificateId = null;
+      if (isPassed) {
+        const certificateNumber = `CERT-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        
+        const { data: certData, error: certError } = await supabase!
+          .from('certificates')
+          .insert({
+            user_id: sessionData.user_id,
+            survey_id: sessionData.survey_id,
+            result_id: resultData.id,
+            certificate_number: certificateNumber,
+            certificate_status: 'active'
+          })
+          .select()
+          .single();
+
+        if (!certError && certData) {
+          certificateId = certData.id;
+          
+          // Update result with certificate ID
+          await supabase!
+            .from('test_results')
+            .update({ certificate_id: certificateId })
+            .eq('id', resultData.id);
+        }
+      }
+
+      // Log test completion
+      await ActivityLogger.logTestComplete(
+        sessionData.user_id,
+        sessionData.survey_id,
+        sessionData.survey.title,
+        finalScore,
+        isPassed
+      );
+
+      const testResult: TestResult = {
+        id: resultData.id,
+        userId: resultData.user_id,
+        user: {} as User, // Will be populated by calling code if needed
+        surveyId: resultData.survey_id,
+        survey: {} as Survey, // Will be populated by calling code if needed
+        sessionId: resultData.session_id,
+        score: resultData.score,
+        totalQuestions: resultData.total_questions,
+        correctAnswers: resultData.correct_answers,
+        isPassed: resultData.is_passed,
+        timeSpent: resultData.time_spent,
+        attemptNumber: resultData.attempt_number,
+        sectionScores: sectionScores.map(s => ({
+          sectionId: s.section_id,
+          sectionTitle: s.section_title,
+          score: s.score,
+          totalQuestions: s.total_questions,
+          correctAnswers: s.correct_answers
+        })),
+        completedAt: new Date(resultData.completed_at),
+        certificateId: certificateId,
+        grade: resultData.grade
+      };
+
+      return { 
+        success: true, 
+        message: `Test submitted successfully! Score: ${finalScore.toFixed(1)}% (${isPassed ? 'Passed' : 'Failed'})`, 
+        data: testResult 
       };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to submit test'
-      };
+      return this.handleError(error);
     }
+  }
+
+  private calculateGrade(score: number): string {
+    if (score >= 90) return 'A+';
+    if (score >= 80) return 'A';
+    if (score >= 70) return 'B';
+    if (score >= 60) return 'C';
+    if (score >= 50) return 'D';
+    return 'F';
   }
 
   async syncOfflineData(): Promise<ApiResponse<void>> {
-    return {
-      success: true,
-      message: 'Offline data synced'
-    };
+    try {
+      // Implementation for syncing offline data
+      return { success: true, message: 'Data synced successfully' };
+    } catch (error) {
+      return this.handleError(error);
+    }
   }
 
   async logSecurityViolation(sessionId: string, violation: string): Promise<ApiResponse<void>> {
     try {
       if (isDemoMode) {
+        console.log('Security violation (demo mode):', violation);
         return { success: true, message: 'Security violation logged (demo mode)' };
       }
 
@@ -1554,515 +1250,220 @@ class TestApi extends BaseApi {
         metadata: { session_id: sessionId, violation }
       });
 
-      return {
-        success: true,
-        message: 'Security violation logged'
-      };
+      return { success: true, message: 'Security violation logged' };
     } catch (error) {
-      return {
-        success: false,
-        message: 'Failed to log security violation'
-      };
+      return this.handleError(error);
     }
   }
 }
 
-// Question API
-class QuestionApi extends BaseApi {
-  async getQuestions(sectionId: string): Promise<ApiResponse<Question[]>> {
+// Dashboard APIs
+class DashboardApi extends BaseApi {
+  async getDashboardData(): Promise<ApiResponse<Dashboard>> {
     try {
       if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: []
-        };
+        return { success: false, message: 'Dashboard not available in demo mode' };
       }
 
-      const { data, error } = await this.getClient()
-        .from('questions')
+      // Mock dashboard data for now
+      const dashboardData: Dashboard = {
+        totalUsers: 0,
+        totalSurveys: 0,
+        totalAttempts: 0,
+        averageScore: 0,
+        passRate: 0,
+        recentActivity: [],
+        performanceByRole: [],
+        performanceBySurvey: [],
+        monthlyTrends: []
+      };
+
+      return { success: true, message: 'Dashboard data fetched successfully', data: dashboardData };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+}
+
+class EnumeratorDashboardApi extends BaseApi {
+  async getDashboardData(): Promise<ApiResponse<EnumeratorDashboard>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Enumerator dashboard not available in demo mode' };
+      }
+
+      // Get current user
+      const { data: { user: authUser } } = await supabase!.auth.getUser();
+      if (!authUser) {
+        throw new Error('User not authenticated');
+      }
+
+      // Get user profile
+      const { data: userData, error: userError } = await supabase!
+        .from('users')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
+
+      if (userError || !userData) {
+        throw new Error('User profile not found');
+      }
+
+      // Get available tests (surveys assigned to user's zone/region or all if no assignment)
+      const { data: surveysData, error: surveysError } = await supabase!
+        .from('surveys')
+        .select('*')
+        .eq('is_active', true);
+
+      if (surveysError) throw surveysError;
+
+      // Filter surveys based on user's zone/region
+      const availableSurveys = (surveysData || []).filter((survey: any) => {
+        const assignedZones = survey.assigned_zones || [];
+        const assignedRegions = survey.assigned_regions || [];
+        
+        // If no zones/regions assigned, survey is available to all
+        if (assignedZones.length === 0 && assignedRegions.length === 0) {
+          return true;
+        }
+        
+        // Check if user's zone/region matches
+        const zoneMatch = assignedZones.length === 0 || assignedZones.includes(userData.zone);
+        const regionMatch = assignedRegions.length === 0 || assignedRegions.includes(userData.region);
+        
+        return zoneMatch && regionMatch;
+      });
+
+      // Get user's test results
+      const { data: resultsData, error: resultsError } = await supabase!
+        .from('test_results')
         .select(`
           *,
-          question_options(*)
+          survey:surveys(title)
         `)
-        .eq('section_id', sectionId)
-        .order('question_order');
+        .eq('user_id', authUser.id)
+        .order('completed_at', { ascending: false });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (resultsError) throw resultsError;
 
-      const questions: Question[] = (data || []).map((question: any) => ({
-        id: question.id,
-        sectionId: question.section_id,
-        text: question.text,
-        type: question.question_type as any,
-        complexity: question.complexity as any,
-        options: (question.question_options || []).map((option: any) => ({
-          id: option.id,
-          text: option.text,
-          isCorrect: option.is_correct
-        })),
-        correctAnswers: (question.question_options || [])
-          .filter((option: any) => option.is_correct)
-          .map((option: any) => option.id),
-        explanation: question.explanation,
-        points: question.points,
-        order: question.question_order,
-        createdAt: new Date(question.created_at),
-        updatedAt: new Date(question.updated_at)
-      }));
-
-      return {
-        success: true,
-        message: 'Questions loaded successfully',
-        data: questions
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load questions',
-        data: []
-      };
-    }
-  }
-}
-
-// Settings API
-class SettingsApi extends BaseApi {
-  async getSettings(): Promise<ApiResponse<SystemSettings[]>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: []
-        };
-      }
-
-      const { data, error } = await this.getClient()
-        .from('system_settings')
-        .select('*')
-        .order('category', { ascending: true });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      const settings: SystemSettings[] = (data || []).map((setting: any) => ({
-        id: setting.id,
-        category: setting.category,
-        key: setting.setting_key,
-        value: setting.setting_value,
-        description: setting.description,
-        type: setting.setting_type as any,
-        isEditable: setting.is_editable,
-        options: setting.options,
-        updatedAt: new Date(setting.updated_at),
-        updatedBy: setting.updated_by
-      }));
-
-      return {
-        success: true,
-        message: 'Settings loaded successfully',
-        data: settings
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load settings',
-        data: []
-      };
-    }
-  }
-
-  async updateSetting(settingId: string, value: string): Promise<ApiResponse<void>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot update settings'
-        };
-      }
-
-      const { error } = await this.getClient()
-        .from('system_settings')
-        .update({
-          setting_value: value,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', settingId);
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      return {
-        success: true,
-        message: 'Setting updated successfully'
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to update setting'
-      };
-    }
-  }
-}
-
-// Certificate API
-class CertificateApi extends BaseApi {
-  async getCertificates(): Promise<ApiResponse<Certificate[]>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: []
-        };
-      }
-
-      const { data, error } = await this.getClient()
+      // Get user's certificates
+      const { data: certificatesData, error: certificatesError } = await supabase!
         .from('certificates')
         .select(`
           *,
-          user:users(*),
-          survey:surveys(*)
+          survey:surveys(title),
+          user:users(name, email, role:roles(name))
         `)
+        .eq('user_id', authUser.id)
         .order('issued_at', { ascending: false });
 
-      if (error) {
-        throw new Error(error.message);
-      }
+      if (certificatesError) throw certificatesError;
 
-      const certificates: Certificate[] = (data || []).map((cert: any) => ({
+      // Process available tests
+      const availableTests = availableSurveys.map((survey: any) => {
+        const userResults = (resultsData || []).filter((r: any) => r.survey_id === survey.id);
+        const attemptsUsed = userResults.length;
+        const attemptsLeft = Math.max(0, survey.max_attempts - attemptsUsed);
+        const isEligible = attemptsLeft > 0 && new Date(survey.target_date) >= new Date();
+
+        return {
+          surveyId: survey.id,
+          title: survey.title,
+          description: survey.description,
+          targetDate: new Date(survey.target_date),
+          duration: survey.duration,
+          totalQuestions: survey.total_questions,
+          passingScore: survey.passing_score,
+          attemptsLeft,
+          maxAttempts: survey.max_attempts,
+          isEligible
+        };
+      });
+
+      // Process completed tests
+      const completedTests = (resultsData || []).map((result: any) => ({
+        resultId: result.id,
+        surveyTitle: result.survey.title,
+        score: result.score,
+        isPassed: result.is_passed,
+        completedAt: new Date(result.completed_at),
+        attemptNumber: result.attempt_number,
+        certificateId: result.certificate_id
+      }));
+
+      // Process upcoming tests
+      const upcomingTests = availableTests
+        .filter(test => test.isEligible)
+        .map(test => {
+          const daysLeft = Math.ceil((test.targetDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+          return {
+            surveyId: test.surveyId,
+            title: test.title,
+            targetDate: test.targetDate,
+            daysLeft: Math.max(0, daysLeft),
+            isOverdue: daysLeft < 0
+          };
+        })
+        .sort((a, b) => a.daysLeft - b.daysLeft);
+
+      // Process certificates
+      const certificates = (certificatesData || []).map((cert: any) => ({
         id: cert.id,
         userId: cert.user_id,
         user: {
-          id: cert.user.id,
+          id: cert.user.id || authUser.id,
           name: cert.user.name,
           email: cert.user.email,
-          role: { name: 'Enumerator' } as any
-        } as any,
+          role: cert.user.role
+        },
         surveyId: cert.survey_id,
         survey: {
-          id: cert.survey.id,
+          id: cert.survey_id,
           title: cert.survey.title
-        } as any,
+        },
         resultId: cert.result_id,
         certificateNumber: cert.certificate_number,
         issuedAt: new Date(cert.issued_at),
         validUntil: cert.valid_until ? new Date(cert.valid_until) : undefined,
         downloadCount: cert.download_count,
-        status: cert.certificate_status as any
+        status: cert.certificate_status
       }));
 
-      return {
-        success: true,
-        message: 'Certificates loaded successfully',
-        data: certificates
+      // Calculate statistics
+      const passedTests = completedTests.filter(t => t.isPassed).length;
+      const averageScore = completedTests.length > 0 
+        ? completedTests.reduce((sum, t) => sum + t.score, 0) / completedTests.length 
+        : 0;
+      const overallProgress = availableTests.length > 0 
+        ? (completedTests.length / availableTests.length) * 100 
+        : 0;
+
+      const dashboardData: EnumeratorDashboard = {
+        availableTests,
+        completedTests,
+        upcomingTests,
+        certificates,
+        overallProgress,
+        averageScore,
+        totalAttempts: completedTests.length,
+        passedTests
       };
+
+      return { success: true, message: 'Dashboard data fetched successfully', data: dashboardData };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load certificates',
-        data: []
-      };
-    }
-  }
-
-  async downloadCertificate(certificateId: string): Promise<ApiResponse<Blob>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot download certificates'
-        };
-      }
-
-      // This would typically generate and return a PDF blob
-      // For now, return a simple success response
-      const blob = new Blob(['Certificate content'], { type: 'application/pdf' });
-      
-      return {
-        success: true,
-        message: 'Certificate downloaded successfully',
-        data: blob
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to download certificate'
-      };
-    }
-  }
-
-  async revokeCertificate(certificateId: string): Promise<ApiResponse<void>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot revoke certificates'
-        };
-      }
-
-      const { error } = await this.getClient()
-        .from('certificates')
-        .update({
-          certificate_status: 'revoked',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', certificateId);
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      return {
-        success: true,
-        message: 'Certificate revoked successfully'
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to revoke certificate'
-      };
+      return this.handleError(error);
     }
   }
 }
 
-// Results API
-class ResultApi extends BaseApi {
-  async getResults(filters: AnalyticsFilter): Promise<ApiResponse<TestResult[]>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: []
-        };
-      }
-
-      const { data, error } = await this.getClient()
-        .from('test_results')
-        .select(`
-          *,
-          user:users(*),
-          survey:surveys(*)
-        `)
-        .order('completed_at', { ascending: false });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      const results: TestResult[] = (data || []).map((result: any) => ({
-        id: result.id,
-        userId: result.user_id,
-        user: result.user ? {
-          id: result.user.id,
-          name: result.user.name,
-          email: result.user.email,
-          role: { name: 'Enumerator' } as any
-        } as any : null,
-        surveyId: result.survey_id,
-        survey: result.survey ? {
-          id: result.survey.id,
-          title: result.survey.title,
-          maxAttempts: result.survey.max_attempts
-        } as any : null,
-        sessionId: result.session_id,
-        score: result.score,
-        totalQuestions: result.total_questions,
-        correctAnswers: result.correct_answers,
-        isPassed: result.is_passed,
-        timeSpent: result.time_spent,
-        attemptNumber: result.attempt_number,
-        sectionScores: [],
-        completedAt: new Date(result.completed_at),
-        certificateId: result.certificate_id,
-        grade: result.grade
-      }));
-
-      return {
-        success: true,
-        message: 'Results loaded successfully',
-        data: results
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load results',
-        data: []
-      };
-    }
-  }
-
-  async getAnalytics(filters: AnalyticsFilter): Promise<ApiResponse<AnalyticsData>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: {
-            overview: {
-              totalAttempts: 0,
-              passRate: 0,
-              averageScore: 0,
-              averageTime: 0
-            },
-            performanceByRole: [],
-            performanceBySurvey: [],
-            performanceByJurisdiction: [],
-            timeSeriesData: [],
-            topPerformers: [],
-            lowPerformers: []
-          }
-        };
-      }
-
-      // This would implement comprehensive analytics
-      const analyticsData: AnalyticsData = {
-        overview: {
-          totalAttempts: 0,
-          passRate: 0,
-          averageScore: 0,
-          averageTime: 0
-        },
-        performanceByRole: [],
-        performanceBySurvey: [],
-        performanceByJurisdiction: [],
-        timeSeriesData: [],
-        topPerformers: [],
-        lowPerformers: []
-      };
-
-      return {
-        success: true,
-        message: 'Analytics loaded successfully',
-        data: analyticsData
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load analytics'
-      };
-    }
-  }
-
-  async exportResults(filters: AnalyticsFilter): Promise<ApiResponse<string>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: false,
-          message: 'Demo mode: Cannot export results'
-        };
-      }
-
-      // This would generate CSV data
-      const csvData = 'Name,Email,Survey,Score,Status,Date\n';
-      
-      return {
-        success: true,
-        message: 'Results exported successfully',
-        data: csvData
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to export results'
-      };
-    }
-  }
-}
-
-// Enumerator API
-class EnumeratorApi extends BaseApi {
-  async getEnumeratorStatus(): Promise<ApiResponse<EnumeratorStatus[]>> {
-    try {
-      if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: []
-        };
-      }
-
-      const { data, error } = await this.getClient()
-        .from('users')
-        .select(`
-          *,
-          role:roles(*)
-        `)
-        .eq('role.level', 6) // Enumerator level
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      const enumerators: EnumeratorStatus[] = (data || []).map((user: any) => ({
-        id: user.id,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          jurisdiction: user.jurisdiction,
-          zone: user.zone,
-          region: user.region,
-          district: user.district,
-          employeeId: user.employee_id,
-          phoneNumber: user.phone_number
-        } as any,
-        surveys: [],
-        overallProgress: 0,
-        totalCertificates: 0,
-        lastActivity: new Date(user.updated_at)
-      }));
-
-      return {
-        success: true,
-        message: 'Enumerator status loaded successfully',
-        data: enumerators
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load enumerator status',
-        data: []
-      };
-    }
-  }
-}
-
-// Supervisor Dashboard API
 class SupervisorDashboardApi extends BaseApi {
   async getDashboardData(dateFilter: string): Promise<ApiResponse<SupervisorDashboard>> {
     try {
       if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: {
-            totalUsers: 0,
-            totalSurveys: 0,
-            totalAttempts: 0,
-            averageScore: 0,
-            passRate: 0,
-            recentActivity: [],
-            performanceByRole: [],
-            performanceBySurvey: [],
-            monthlyTrends: [],
-            totalEnumerators: 0,
-            teamPerformance: [],
-            enumeratorStatus: [],
-            upcomingDeadlines: []
-          }
-        };
+        return { success: false, message: 'Supervisor dashboard not available in demo mode' };
       }
 
-      // This would implement supervisor-specific dashboard data
+      // Mock data for now
       const dashboardData: SupervisorDashboard = {
         totalUsers: 0,
         totalSurveys: 0,
@@ -2079,48 +1480,21 @@ class SupervisorDashboardApi extends BaseApi {
         upcomingDeadlines: []
       };
 
-      return {
-        success: true,
-        message: 'Supervisor dashboard data loaded successfully',
-        data: dashboardData
-      };
+      return { success: true, message: 'Supervisor dashboard data fetched successfully', data: dashboardData };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load supervisor dashboard data'
-      };
+      return this.handleError(error);
     }
   }
 }
 
-// RO Dashboard API
 class RODashboardApi extends BaseApi {
   async getDashboardData(dateFilter: string): Promise<ApiResponse<RODashboard>> {
     try {
       if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: {
-            totalUsers: 0,
-            totalSurveys: 0,
-            totalAttempts: 0,
-            averageScore: 0,
-            passRate: 0,
-            recentActivity: [],
-            performanceByRole: [],
-            performanceBySurvey: [],
-            monthlyTrends: [],
-            totalDistricts: 0,
-            totalSupervisors: 0,
-            districtPerformance: [],
-            supervisorPerformance: [],
-            enumeratorDistribution: []
-          }
-        };
+        return { success: false, message: 'RO dashboard not available in demo mode' };
       }
 
-      // This would implement RO-specific dashboard data
+      // Mock data for now
       const dashboardData: RODashboard = {
         totalUsers: 0,
         totalSurveys: 0,
@@ -2138,49 +1512,21 @@ class RODashboardApi extends BaseApi {
         enumeratorDistribution: []
       };
 
-      return {
-        success: true,
-        message: 'RO dashboard data loaded successfully',
-        data: dashboardData
-      };
+      return { success: true, message: 'RO dashboard data fetched successfully', data: dashboardData };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load RO dashboard data'
-      };
+      return this.handleError(error);
     }
   }
 }
 
-// ZO Dashboard API
 class ZODashboardApi extends BaseApi {
   async getDashboardData(dateFilter: string): Promise<ApiResponse<ZODashboard>> {
     try {
       if (isDemoMode) {
-        return {
-          success: true,
-          message: 'Demo data loaded',
-          data: {
-            totalUsers: 0,
-            totalSurveys: 0,
-            totalAttempts: 0,
-            averageScore: 0,
-            passRate: 0,
-            recentActivity: [],
-            performanceByRole: [],
-            performanceBySurvey: [],
-            monthlyTrends: [],
-            totalZones: 0,
-            totalRegions: 0,
-            zonePerformance: [],
-            regionalBreakdown: [],
-            topPerformingRegions: [],
-            lowPerformingRegions: []
-          }
-        };
+        return { success: false, message: 'ZO dashboard not available in demo mode' };
       }
 
-      // This would implement ZO-specific dashboard data
+      // Mock data for now
       const dashboardData: ZODashboard = {
         totalUsers: 0,
         totalSurveys: 0,
@@ -2199,16 +1545,276 @@ class ZODashboardApi extends BaseApi {
         lowPerformingRegions: []
       };
 
-      return {
-        success: true,
-        message: 'ZO dashboard data loaded successfully',
-        data: dashboardData
-      };
+      return { success: true, message: 'ZO dashboard data fetched successfully', data: dashboardData };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load ZO dashboard data'
+      return this.handleError(error);
+    }
+  }
+}
+
+// Results and Analytics API
+class ResultApi extends BaseApi {
+  async getResults(filters: AnalyticsFilter): Promise<ApiResponse<TestResult[]>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Results not available in demo mode' };
+      }
+
+      const { data, error } = await supabase!
+        .from('test_results')
+        .select(`
+          *,
+          user:users(name, email, role:roles(name)),
+          survey:surveys(title, max_attempts),
+          section_scores:section_scores(*)
+        `)
+        .order('completed_at', { ascending: false });
+
+      if (error) throw error;
+
+      const results: TestResult[] = (data || []).map((resultData: any) => ({
+        id: resultData.id,
+        userId: resultData.user_id,
+        user: resultData.user ? {
+          id: resultData.user_id,
+          name: resultData.user.name,
+          email: resultData.user.email,
+          role: resultData.user.role
+        } as User : {} as User,
+        surveyId: resultData.survey_id,
+        survey: resultData.survey ? {
+          id: resultData.survey_id,
+          title: resultData.survey.title,
+          maxAttempts: resultData.survey.max_attempts
+        } as Survey : {} as Survey,
+        sessionId: resultData.session_id,
+        score: resultData.score,
+        totalQuestions: resultData.total_questions,
+        correctAnswers: resultData.correct_answers,
+        isPassed: resultData.is_passed,
+        timeSpent: resultData.time_spent,
+        attemptNumber: resultData.attempt_number,
+        sectionScores: (resultData.section_scores || []).map((score: any) => ({
+          sectionId: score.section_id,
+          sectionTitle: score.section_title,
+          score: score.score,
+          totalQuestions: score.total_questions,
+          correctAnswers: score.correct_answers
+        })),
+        completedAt: new Date(resultData.completed_at),
+        certificateId: resultData.certificate_id,
+        grade: resultData.grade
+      }));
+
+      return { success: true, message: 'Results fetched successfully', data: results };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async getAnalytics(filters: AnalyticsFilter): Promise<ApiResponse<AnalyticsData>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Analytics not available in demo mode' };
+      }
+
+      // Mock analytics data for now
+      const analyticsData: AnalyticsData = {
+        overview: {
+          totalAttempts: 0,
+          passRate: 0,
+          averageScore: 0,
+          averageTime: 0
+        },
+        performanceByRole: [],
+        performanceBySurvey: [],
+        performanceByJurisdiction: [],
+        timeSeriesData: [],
+        topPerformers: [],
+        lowPerformers: []
       };
+
+      return { success: true, message: 'Analytics data fetched successfully', data: analyticsData };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async exportResults(filters: AnalyticsFilter): Promise<ApiResponse<Blob>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Export not available in demo mode' };
+      }
+
+      // Mock CSV export
+      const csvContent = 'Name,Email,Survey,Score,Status,Date\n';
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+
+      return { success: true, message: 'Results exported successfully', data: blob };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+}
+
+// Certificate API
+class CertificateApi extends BaseApi {
+  async getCertificates(): Promise<ApiResponse<Certificate[]>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Certificates not available in demo mode' };
+      }
+
+      const { data, error } = await supabase!
+        .from('certificates')
+        .select(`
+          *,
+          user:users(name, email, role:roles(name)),
+          survey:surveys(title)
+        `)
+        .order('issued_at', { ascending: false });
+
+      if (error) throw error;
+
+      const certificates: Certificate[] = (data || []).map((certData: any) => ({
+        id: certData.id,
+        userId: certData.user_id,
+        user: {
+          id: certData.user_id,
+          name: certData.user.name,
+          email: certData.user.email,
+          role: certData.user.role
+        } as User,
+        surveyId: certData.survey_id,
+        survey: {
+          id: certData.survey_id,
+          title: certData.survey.title
+        } as Survey,
+        resultId: certData.result_id,
+        certificateNumber: certData.certificate_number,
+        issuedAt: new Date(certData.issued_at),
+        validUntil: certData.valid_until ? new Date(certData.valid_until) : undefined,
+        downloadCount: certData.download_count,
+        status: certData.certificate_status
+      }));
+
+      return { success: true, message: 'Certificates fetched successfully', data: certificates };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async downloadCertificate(certificateId: string): Promise<ApiResponse<Blob>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Certificate download not available in demo mode' };
+      }
+
+      // Mock PDF generation
+      const pdfContent = `Certificate ${certificateId}`;
+      const blob = new Blob([pdfContent], { type: 'application/pdf' });
+
+      // Update download count
+      await supabase!
+        .from('certificates')
+        .update({ download_count: supabase!.raw('download_count + 1') })
+        .eq('id', certificateId);
+
+      return { success: true, message: 'Certificate downloaded successfully', data: blob };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async revokeCertificate(certificateId: string): Promise<ApiResponse<void>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Certificate revocation not available in demo mode' };
+      }
+
+      const { error } = await supabase!
+        .from('certificates')
+        .update({ certificate_status: 'revoked' })
+        .eq('id', certificateId);
+
+      if (error) throw error;
+
+      return { success: true, message: 'Certificate revoked successfully' };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+}
+
+// Settings API
+class SettingsApi extends BaseApi {
+  async getSettings(): Promise<ApiResponse<SystemSettings[]>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Settings not available in demo mode' };
+      }
+
+      const { data, error } = await supabase!
+        .from('system_settings')
+        .select('*')
+        .order('category', { ascending: true });
+
+      if (error) throw error;
+
+      const settings: SystemSettings[] = (data || []).map((settingData: any) => ({
+        id: settingData.id,
+        category: settingData.category,
+        key: settingData.setting_key,
+        value: settingData.setting_value,
+        description: settingData.description,
+        type: settingData.setting_type as any,
+        isEditable: settingData.is_editable,
+        options: settingData.options,
+        updatedAt: new Date(settingData.updated_at),
+        updatedBy: settingData.updated_by
+      }));
+
+      return { success: true, message: 'Settings fetched successfully', data: settings };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+
+  async updateSetting(id: string, value: string): Promise<ApiResponse<void>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Setting updates not available in demo mode' };
+      }
+
+      const { error } = await supabase!
+        .from('system_settings')
+        .update({
+          setting_value: value,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      return { success: true, message: 'Setting updated successfully' };
+    } catch (error) {
+      return this.handleError(error);
+    }
+  }
+}
+
+// Enumerator Status API
+class EnumeratorApi extends BaseApi {
+  async getEnumeratorStatus(): Promise<ApiResponse<EnumeratorStatus[]>> {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Enumerator status not available in demo mode' };
+      }
+
+      // Mock data for now
+      return { success: true, message: 'Enumerator status fetched successfully', data: [] };
+    } catch (error) {
+      return this.handleError(error);
     }
   }
 }
@@ -2225,7 +1831,7 @@ export const enumeratorDashboardApi = new EnumeratorDashboardApi();
 export const supervisorDashboardApi = new SupervisorDashboardApi();
 export const roDashboardApi = new RODashboardApi();
 export const zoDashboardApi = new ZODashboardApi();
-export const settingsApi = new SettingsApi();
-export const certificateApi = new CertificateApi();
 export const resultApi = new ResultApi();
+export const certificateApi = new CertificateApi();
+export const settingsApi = new SettingsApi();
 export const enumeratorApi = new EnumeratorApi();
