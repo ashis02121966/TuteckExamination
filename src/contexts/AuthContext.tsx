@@ -77,16 +77,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
               };
               
               setUser(user);
-              localStorage.setItem('userData', JSON.stringify(user));
-              localStorage.setItem('authToken', session.access_token);
               setIsLoading(false);
               return;
             } else {
               // User data fetch failed, clear authentication state
               await logout();
               setUser(null);
-              localStorage.removeItem('authToken');
-              localStorage.removeItem('userData');
               setIsLoading(false);
               return;
             }
@@ -94,8 +90,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
               // Session is invalid, clear authentication state
               await logout();
               setUser(null);
-              localStorage.removeItem('authToken');
-              localStorage.removeItem('userData');
               setIsLoading(false);
               return;
             }
@@ -103,19 +97,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // User validation failed (invalid/expired refresh token), clear authentication state
             await logout();
             setUser(null);
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userData');
             setIsLoading(false);
             return;
           }
-        }
-        
-        // Fallback to localStorage if no Supabase session
-        const token = localStorage.getItem('authToken');
-        const userData = localStorage.getItem('userData');
-        
-        if (token && userData) {
-          setUser(JSON.parse(userData));
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
@@ -127,8 +111,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Ignore logout errors during cleanup
         }
         setUser(null);
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('userData');
       }
       
       setIsLoading(false);
@@ -144,8 +126,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         async (event, session) => {
           if (event === 'SIGNED_OUT' || !session) {
             setUser(null);
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userData');
           }
         }
       );
@@ -169,14 +149,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Disabled first login password change requirement
         const isFirstLogin = false;
         
-        setUser(user);
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('userData', JSON.stringify(user));
-        
-        // Store Supabase session if available
-        if (session && !isDemoMode) {
-          localStorage.setItem('supabase.auth.token', JSON.stringify(session));
-        }
+        // Re-initialize auth state to get user from Supabase session
+        await initializeAuth();
         
         // Show password change modal for first login (only in production mode)
         if (isFirstLogin) {
@@ -270,8 +244,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     } finally {
       setUser(null);
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('userData');
     }
   };
 
