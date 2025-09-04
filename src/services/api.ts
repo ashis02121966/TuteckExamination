@@ -1112,36 +1112,110 @@ class DashboardApi extends BaseApi {
         };
       }
 
-      // Fetch dashboard statistics
-      const [usersCount, surveysCount, attemptsCount] = await Promise.all([
-        this.getClient().from('users').select('*', { count: 'exact', head: true }),
-        this.getClient().from('surveys').select('*', { count: 'exact', head: true }),
-        this.getClient().from('test_results').select('*', { count: 'exact', head: true })
-      ]);
+      // Get total counts using admin client to bypass RLS
+      const { data: usersData, error: usersError } = await this.getAdminClient()
+        .from('users')
+        .select('id, is_active')
+        .eq('is_active', true);
+      
+      const { data: surveysData, error: surveysError } = await this.getAdminClient()
+        .from('surveys')
+        .select('id, is_active')
+        .eq('is_active', true);
+      
+      const { data: attemptsData, error: attemptsError } = await this.getAdminClient()
+        .from('test_results')
+        .select('id, score, is_passed');
+      
+      if (usersError || surveysError || attemptsError) {
+        console.error('Error fetching dashboard counts:', { usersError, surveysError, attemptsError });
+        throw new Error('Failed to fetch dashboard data');
+      }
+      
+      const totalUsers = usersData?.length || 0;
+      const totalSurveys = surveysData?.length || 0;
+      const totalAttempts = attemptsData?.length || 0;
+      const passedAttempts = attemptsData?.filter(attempt => attempt.is_passed).length || 0;
+      const totalScore = attemptsData?.reduce((sum, attempt) => sum + attempt.score, 0) || 0;
+      const averageScore = totalAttempts > 0 ? totalScore / totalAttempts : 0;
+      const passRate = totalAttempts > 0 ? (passedAttempts / totalAttempts) * 100 : 0;
+
+      console.log('Dashboard stats:', { totalUsers, totalSurveys, totalAttempts, passRate, averageScore });
+
+      // Get performance by role
+      const { data: rolePerformance } = await this.getAdminClient()
+        .from('test_results')
+        .select(`
+          score,
+          is_passed,
+          user:users!inner(
+            role:roles!inner(name)
+          )
+        `);
+
+      const performanceByRole = this.calculatePerformanceByRole(rolePerformance || []);
+
+      // Get performance by survey
+      const { data: surveyPerformance } = await this.getAdminClient()
+        .from('test_results')
+        .select(`
+          score,
+          is_passed,
+          survey:surveys!inner(title)
+        `);
+
+      const performanceBySurvey = this.calculatePerformanceBySurvey(surveyPerformance || []);
+
+      // Get recent activity
+      const { data: recentActivity } = await this.getAdminClient()
+        .from('activity_logs')
+        .select(`
+          id,
+          activity_type,
+          description,
+          created_at,
+          user:users(name)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      const activities = (recentActivity || []).map((activity: any) => ({
+        id: activity.id,
+        type: activity.activity_type,
+        description: activity.description,
+        userId: activity.user_id,
+        userName: activity.user?.name || 'Unknown User',
+        timestamp: new Date(activity.created_at)
+      }));
 
       const dashboardData: Dashboard = {
-        totalUsers: usersCount.count || 0,
-        totalSurveys: surveysCount.count || 0,
-        totalAttempts: attemptsCount.count || 0,
-        averageScore: 75.5,
-        passRate: 68.2,
-        recentActivity: [],
-        performanceByRole: [],
-        performanceBySurvey: [],
-        monthlyTrends: []
+        totalUsers,
+        totalSurveys,
+        totalAttempts,
+        averageScore,
+        passRate,
+        recentActivity: activities,
+        performanceByRole,
+        performanceBySurvey,
+        monthlyTrends: [] // TODO: Implement monthly trends
       };
 
-      return {
-        success: true,
-        message: 'Dashboard data loaded successfully',
-        data: dashboardData
-      };
+      console.log('Dashboard data prepared:', dashboardData);
+      return { success: true, data: dashboardData, message: 'Dashboard data fetched successfully' };
     } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Failed to load dashboard data'
-      };
+      console.error('Error fetching dashboard data:', error);
+      return { success: false, message: 'Failed to fetch dashboard data' };
     }
+  }
+
+  private calculatePerformanceByRole(data: any[]): any[] {
+    // Implementation for calculating performance by role
+    return [];
+  }
+
+  private calculatePerformanceBySurvey(data: any[]): any[] {
+    // Implementation for calculating performance by survey
+    return [];
   }
 }
 
