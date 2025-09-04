@@ -1823,8 +1823,8 @@ class ResultApi extends BaseApi {
         .from('test_results')
         .select(`
           *,
-          user:users(
-            id,
+         user:users(id, name, email, role:roles(id, name)),
+         survey:surveys(id, title, max_attempts)
             name,
             email,
             jurisdiction,
@@ -1862,7 +1862,14 @@ class ResultApi extends BaseApi {
         return { success: false, message: error.message, data: [] };
       }
 
-      const results: TestResult[] = (data || []).map((result: any) => ({
+     // Transform the data to ensure proper structure
+     const transformedData = (data || []).map(result => ({
+       ...result,
+       user: result.user || { name: 'Unknown User', email: 'unknown@example.com', role: { name: 'Unknown Role' } },
+       survey: result.survey || { title: 'Unknown Survey', max_attempts: 0 }
+     }));
+
+     return { success: true, data: transformedData, message: 'Results fetched successfully' };
         id: result.id,
         userId: result.user_id,
         user: result.user ? {
