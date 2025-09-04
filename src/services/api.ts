@@ -1957,6 +1957,116 @@ class EnumeratorApi extends BaseApi {
   }
 }
 
+// Survey Section API
+export const sectionApi = {
+  async getSections(surveyId: string): Promise<ApiResponse<Section[]>> {
+    try {
+      if (!supabase) {
+        return { success: false, message: 'Database not configured', data: [] };
+      }
+
+      const { data, error } = await supabase
+        .from('survey_sections')
+        .select('*')
+        .eq('survey_id', surveyId)
+        .order('section_order');
+
+      if (error) throw error;
+
+      return { success: true, data: data || [], message: 'Sections fetched successfully' };
+    } catch (error) {
+      console.error('Failed to fetch sections:', error);
+      return { success: false, message: 'Failed to fetch sections', data: [] };
+    }
+  },
+
+  async createSection(sectionData: {
+    surveyId: string;
+    title: string;
+    description: string;
+    questionsCount: number;
+    sectionOrder: number;
+  }): Promise<ApiResponse<Section>> {
+    try {
+      if (!supabase) {
+        return { success: false, message: 'Database not configured' };
+      }
+
+      const { data, error } = await supabase
+        .from('survey_sections')
+        .insert({
+          survey_id: sectionData.surveyId,
+          title: sectionData.title,
+          description: sectionData.description,
+          questions_count: sectionData.questionsCount,
+          section_order: sectionData.sectionOrder
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return { success: true, data, message: 'Section created successfully' };
+    } catch (error) {
+      console.error('Failed to create section:', error);
+      return { success: false, message: 'Failed to create section' };
+    }
+  },
+
+  async updateSection(sectionId: string, sectionData: {
+    title: string;
+    description: string;
+    questionsCount: number;
+    sectionOrder: number;
+  }): Promise<ApiResponse<Section>> {
+    try {
+      if (!supabase) {
+        return { success: false, message: 'Database not configured' };
+      }
+
+      const { data, error } = await supabase
+        .from('survey_sections')
+        .update({
+          title: sectionData.title,
+          description: sectionData.description,
+          questions_count: sectionData.questionsCount,
+          section_order: sectionData.sectionOrder,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sectionId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return { success: true, data, message: 'Section updated successfully' };
+    } catch (error) {
+      console.error('Failed to update section:', error);
+      return { success: false, message: 'Failed to update section' };
+    }
+  },
+
+  async deleteSection(sectionId: string): Promise<ApiResponse<void>> {
+    try {
+      if (!supabase) {
+        return { success: false, message: 'Database not configured' };
+      }
+
+      const { error } = await supabase
+        .from('survey_sections')
+        .delete()
+        .eq('id', sectionId);
+
+      if (error) throw error;
+
+      return { success: true, message: 'Section deleted successfully' };
+    } catch (error) {
+      console.error('Failed to delete section:', error);
+      return { success: false, message: 'Failed to delete section' };
+    }
+  }
+};
+
 // Export API instances
 export const authApi = new AuthApi();
 export const userApi = new UserApi();

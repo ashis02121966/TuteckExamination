@@ -792,6 +792,172 @@ export function Questions() {
           </div>
         </Modal>
 
+        {/* Create Section Modal */}
+        <Modal
+          isOpen={isSectionModalOpen}
+          onClose={() => {
+            setIsSectionModalOpen(false);
+            resetSectionForm();
+          }}
+          title="Create New Section"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <Input
+              label="Section Title"
+              value={sectionFormData.title}
+              onChange={(e) => setSectionFormData({ ...sectionFormData, title: e.target.value })}
+              placeholder="Enter section title"
+            />
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <textarea
+                value={sectionFormData.description}
+                onChange={(e) => setSectionFormData({ ...sectionFormData, description: e.target.value })}
+                placeholder="Enter section description"
+                rows={3}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Target Questions Count"
+                type="number"
+                min="1"
+                value={sectionFormData.questionsCount}
+                onChange={(e) => setSectionFormData({ ...sectionFormData, questionsCount: parseInt(e.target.value) })}
+                placeholder="Number of questions for this section"
+              />
+              <Input
+                label="Section Order"
+                type="number"
+                min="1"
+                value={sectionFormData.sectionOrder}
+                onChange={(e) => setSectionFormData({ ...sectionFormData, sectionOrder: parseInt(e.target.value) })}
+                placeholder="Display order of this section"
+              />
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">Section Information</h4>
+              <p className="text-sm text-blue-800">
+                This section will be part of "{selectedSurveyData?.title}". The questions count determines how many questions will be randomly selected from this section during tests.
+              </p>
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setIsSectionModalOpen(false);
+                  resetSectionForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleCreateSection}>
+                Create Section
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Edit Section Modal */}
+        <Modal
+          isOpen={isEditSectionModalOpen}
+          onClose={() => {
+            setIsEditSectionModalOpen(false);
+            resetSectionForm();
+          }}
+          title="Edit Section"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <Input
+              label="Section Title"
+              value={sectionFormData.title}
+              onChange={(e) => setSectionFormData({ ...sectionFormData, title: e.target.value })}
+              placeholder="Enter section title"
+            />
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <textarea
+                value={sectionFormData.description}
+                onChange={(e) => setSectionFormData({ ...sectionFormData, description: e.target.value })}
+                placeholder="Enter section description"
+                rows={3}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Target Questions Count"
+                type="number"
+                min="1"
+                value={sectionFormData.questionsCount}
+                onChange={(e) => setSectionFormData({ ...sectionFormData, questionsCount: parseInt(e.target.value) })}
+                placeholder="Number of questions for this section"
+              />
+              <Input
+                label="Section Order"
+                type="number"
+                min="1"
+                value={sectionFormData.sectionOrder}
+                onChange={(e) => setSectionFormData({ ...sectionFormData, sectionOrder: parseInt(e.target.value) })}
+                placeholder="Display order of this section"
+              />
+            </div>
+            
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="font-medium text-yellow-900 mb-2">Current Section Status</h4>
+              <div className="text-sm text-yellow-800 space-y-1">
+                <p>Current Questions: {questions.length}</p>
+                <p>Target Questions: {sectionFormData.questionsCount}</p>
+                {questions.length !== sectionFormData.questionsCount && (
+                  <p className="font-medium">
+                    {questions.length < sectionFormData.questionsCount 
+                      ? `Need ${sectionFormData.questionsCount - questions.length} more questions`
+                      : `${questions.length - sectionFormData.questionsCount} questions above target`
+                    }
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (selectedSectionForEdit) {
+                    handleDeleteSection(selectedSectionForEdit.id);
+                    setIsEditSectionModalOpen(false);
+                    resetSectionForm();
+                  }
+                }}
+                className="mr-auto"
+              >
+                Delete Section
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setIsEditSectionModalOpen(false);
+                  resetSectionForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleEditSection}>
+                Update Section
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
         {/* Upload Modal */}
         <Modal
           isOpen={isUploadModalOpen}
