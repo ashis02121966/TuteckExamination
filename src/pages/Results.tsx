@@ -75,9 +75,12 @@ export function Results() {
   };
 
   const filteredResults = results.filter(result =>
-    (result.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-    (result.survey?.title?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-    (result.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || false)
+    (result.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     result.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+    (result.survey?.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     result.surveyTitle?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+    (result.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     result.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) || false)
   );
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -321,13 +324,13 @@ export function Results() {
                     <tr key={result.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <div>
-                          <p className="font-medium text-gray-900">{result.user?.name || 'Unknown User'}</p>
-                          <p className="text-sm text-gray-500">{result.user?.email || 'No email'}</p>
+                          <p className="font-medium text-gray-900">{result.user?.name || result.userName || 'Unknown User'}</p>
+                          <p className="text-sm text-gray-500">{result.user?.email || result.userEmail || 'No email'}</p>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <p className="font-medium text-gray-900">{result.survey?.title || 'Unknown Survey'}</p>
-                        <p className="text-sm text-gray-500">{result.user?.role?.name || 'Unknown Role'}</p>
+                        <p className="font-medium text-gray-900">{result.survey?.title || result.surveyTitle || 'Unknown Survey'}</p>
+                        <p className="text-sm text-gray-500">{result.user?.role?.name || result.roleName || 'Unknown Role'}</p>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center space-x-2">
@@ -349,7 +352,7 @@ export function Results() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-gray-900">
-                        {result.attemptNumber}/{result.survey?.maxAttempts || 'N/A'}
+                        {result.attemptNumber}/{result.survey?.maxAttempts || result.maxAttempts || 'N/A'}
                       </td>
                       <td className="py-3 px-4 text-gray-900">
                         {formatDuration(Math.floor(result.timeSpent / 60))}
@@ -393,17 +396,17 @@ export function Results() {
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">User Information</h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Name:</span> {selectedResult.user?.name || 'Unknown'}</p>
-                    <p><span className="font-medium">Email:</span> {selectedResult.user?.email || 'Unknown'}</p>
-                    <p><span className="font-medium">Role:</span> {selectedResult.user?.role?.name || 'Unknown'}</p>
-                    <p><span className="font-medium">Jurisdiction:</span> {selectedResult.user?.jurisdiction || 'N/A'}</p>
+                    <p><span className="font-medium">Name:</span> {selectedResult.user?.name || selectedResult.userName || 'Unknown'}</p>
+                    <p><span className="font-medium">Email:</span> {selectedResult.user?.email || selectedResult.userEmail || 'Unknown'}</p>
+                    <p><span className="font-medium">Role:</span> {selectedResult.user?.role?.name || selectedResult.roleName || 'Unknown'}</p>
+                    <p><span className="font-medium">Jurisdiction:</span> {selectedResult.user?.jurisdiction || selectedResult.userJurisdiction || 'N/A'}</p>
                   </div>
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-2">Test Information</h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Survey:</span> {selectedResult.survey?.title || 'Unknown'}</p>
-                    <p><span className="font-medium">Attempt:</span> {selectedResult.attemptNumber}/{selectedResult.survey?.maxAttempts || 'N/A'}</p>
+                    <p><span className="font-medium">Survey:</span> {selectedResult.survey?.title || selectedResult.surveyTitle || 'Unknown'}</p>
+                    <p><span className="font-medium">Attempt:</span> {selectedResult.attemptNumber}/{selectedResult.survey?.maxAttempts || selectedResult.maxAttempts || 'N/A'}</p>
                     <p><span className="font-medium">Time Spent:</span> {formatDuration(Math.floor(selectedResult.timeSpent / 60))}</p>
                     <p><span className="font-medium">Completed:</span> {formatDateTime(selectedResult.completedAt)}</p>
                   </div>

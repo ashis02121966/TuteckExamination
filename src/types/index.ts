@@ -136,6 +136,13 @@ export interface TestResult {
   completedAt: Date;
   certificateId?: string;
   grade?: string;
+  // Additional fields for when user data comes from joined queries
+  userName?: string;
+  userEmail?: string;
+  roleName?: string;
+  userJurisdiction?: string;
+  surveyTitle?: string;
+  maxAttempts?: number;
 }
 
 export interface SectionScore {
