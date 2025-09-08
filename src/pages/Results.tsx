@@ -320,17 +320,10 @@ export function Results() {
                   {filteredResults.map((result) => (
                     <tr key={result.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4">
-                        {result.user ? (
-                          <div>
-                            <p className="font-medium text-gray-900">{result.user.name}</p>
-                            <p className="text-sm text-gray-500">{result.user.email}</p>
-                          </div>
-                        ) : (
-                          <div>
-                            <p className="font-medium text-gray-500">Unknown User</p>
-                            <p className="text-sm text-gray-400">No user data</p>
-                          </div>
-                        )}
+                        <div>
+                          <p className="font-medium text-gray-900">{result.user?.name || 'Unknown User'}</p>
+                          <p className="text-sm text-gray-500">{result.user?.email || 'No email'}</p>
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         <p className="font-medium text-gray-900">{result.survey?.title || 'Unknown Survey'}</p>
