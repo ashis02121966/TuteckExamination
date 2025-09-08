@@ -57,6 +57,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
             }
             try {
               await supabase.auth.signOut();
+              // Aggressively clear all Supabase session data from localStorage
+              Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('sb-')) {
+                  localStorage.removeItem(key);
+                }
+              });
             } catch (signOutError) {
               // Ignore sign out errors
             }
@@ -102,6 +108,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Clear the invalid session
           try {
             await supabase.auth.signOut();
+            // Aggressively clear all Supabase session data from localStorage
+            Object.keys(localStorage).forEach(key => {
+              if (key.startsWith('sb-')) {
+                localStorage.removeItem(key);
+              }
+            });
           } catch (signOutError) {
             // Ignore sign out errors
           }
