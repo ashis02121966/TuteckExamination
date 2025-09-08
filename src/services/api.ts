@@ -1830,10 +1830,27 @@ class ResultApi extends BaseApi {
         return { success: false, message: 'Database not configured', data: [] };
       }
 
-      // Fetch test results with proper joins
-      const { data: results, error } = await supabase
+      let query = supabase
         .from('test_results')
         .select(`
+          *,
+          user:users(
+            id,
+            name,
+            email,
+            jurisdiction,
+            role:roles(
+              name,
+              level
+            )
+          ),
+          survey:surveys(
+            title,
+            max_attempts,
+            passing_score
+          )
+        `)
+        .order('completed_at', { ascending: false });
           *,
           user:users(
             id,
