@@ -4,7 +4,7 @@ import { Card } from '../components/UI/Card';
 import { Button } from '../components/UI/Button';
 import { Input } from '../components/UI/Input';
 import { Modal } from '../components/UI/Modal';
-import { enumeratorApi } from '../services/api';
+import { supervisorDashboardApi } from '../services/api';
 import { EnumeratorStatus, EnumeratorSurveyStatus } from '../types';
 import { Search, Eye, Award, Clock, AlertTriangle, CheckCircle, XCircle, Calendar, Target, User } from 'lucide-react';
 import { formatDateTime, formatDate } from '../utils';
@@ -24,10 +24,15 @@ export function EnumeratorStatusPage() {
   const fetchEnumeratorStatus = async () => {
     try {
       setIsLoading(true);
-      const response = await enumeratorApi.getEnumeratorStatus();
-      setEnumerators(response.data);
+      const response = await supervisorDashboardApi.getDashboardData('30');
+      if (response.success && response.data) {
+        setEnumerators(response.data.enumeratorStatus || []);
+      } else {
+        setEnumerators([]);
+      }
     } catch (error) {
       console.error('Failed to fetch enumerator status:', error);
+      setEnumerators([]);
     } finally {
       setIsLoading(false);
     }

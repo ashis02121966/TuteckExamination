@@ -75,12 +75,10 @@ export function Results() {
   };
 
   const filteredResults = results.filter(result =>
-    (result.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     result.userName?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-    (result.survey?.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     result.surveyTitle?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-    (result.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-     result.userEmail?.toLowerCase().includes(searchTerm.toLowerCase()) || false)
+    searchTerm === '' || 
+    (result.user?.name || result.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (result.user?.email || result.userEmail || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (result.survey?.title || result.surveyTitle || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -324,13 +322,21 @@ export function Results() {
                     <tr key={result.id} className="border-b border-gray-100 hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <div>
-                          <p className="font-medium text-gray-900">{result.user?.name || result.userName || 'Unknown User'}</p>
-                          <p className="text-sm text-gray-500">{result.user?.email || result.userEmail || 'No email'}</p>
+                          <p className="font-medium text-gray-900">
+                            {result.user?.name || result.userName || 'Unknown User'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {result.user?.email || result.userEmail || 'No email'}
+                          </p>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <p className="font-medium text-gray-900">{result.survey?.title || result.surveyTitle || 'Unknown Survey'}</p>
-                        <p className="text-sm text-gray-500">{result.user?.role?.name || result.roleName || 'Unknown Role'}</p>
+                        <p className="font-medium text-gray-900">
+                          {result.survey?.title || result.surveyTitle || 'Unknown Survey'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {result.user?.role?.name || result.roleName || 'Unknown Role'}
+                        </p>
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center space-x-2">
