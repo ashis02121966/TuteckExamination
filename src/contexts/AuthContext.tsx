@@ -52,7 +52,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           
           // If there's a session error (like invalid refresh token), clear the session
           if (sessionError) {
-            console.info('Session error detected, clearing auth state:', sessionError);
+            if (import.meta.env.DEV) {
+              console.info('Session error detected, clearing auth state:', sessionError);
+            }
             try {
               await supabase.auth.signOut();
             } catch (signOutError) {
@@ -93,7 +95,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           }
         } catch (authError) {
           // Handle refresh token errors gracefully
-          console.info('Session validation failed, clearing auth state:', authError);
+          if (import.meta.env.DEV) {
+            console.info('Session validation failed, clearing auth state:', authError);
+          }
           
           // Clear the invalid session
           try {
@@ -104,7 +108,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
     } catch (error) {
-      console.error('Auth initialization error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Auth initialization error:', error);
+      }
     }
     
     // Set user to null and stop loading
@@ -133,14 +139,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (email: string, password: string) => {
     try {
-      console.log('Attempting login with:', email);
-      console.log('Demo mode status:', isDemoMode);
+      if (import.meta.env.DEV) {
+        console.log('Attempting login with:', email);
+        console.log('Demo mode status:', isDemoMode);
+      }
       const response = await authApi.login(email, password);
-      console.log('Login response:', response);
+      if (import.meta.env.DEV) {
+        console.log('Login response:', response);
+      }
       
       if (response.success && response.data) {
         const { user, token, session } = response.data;
-        console.log('Setting user:', user);
+        if (import.meta.env.DEV) {
+          console.log('Setting user:', user);
+        }
         
         // Check if this is first login (password hasn't been changed) - only in production mode
         // Disabled first login password change requirement
@@ -159,7 +171,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       return { success: false, message: response.message };
     } catch (error) {
-      console.error('Login error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Login error:', error);
+      }
       return { success: false, message: 'Login failed. Please try again.' };
     }
   };

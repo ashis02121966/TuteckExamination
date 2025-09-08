@@ -174,7 +174,9 @@ export function TestInterface() {
 
   // Function to log security violations
   const logSecurityViolation = (violation: string) => {
-    console.warn('Security violation detected:', violation);
+    if (import.meta.env.DEV) {
+      console.warn('Security violation detected:', violation);
+    }
     setSecurityViolations(prev => [...prev, violation]);
     setShowSecurityWarning(true);
     
@@ -202,7 +204,9 @@ export function TestInterface() {
       if (session && !isPaused && timeRemaining > 0) {
         setIsPaused(true);
         setPausedTimeRemaining(timeRemaining);
-        console.log('Test auto-paused due to network loss. Time remaining:', timeRemaining);
+        if (import.meta.env.DEV) {
+          console.log('Test auto-paused due to network loss. Time remaining:', timeRemaining);
+        }
       }
     };
 
@@ -213,7 +217,9 @@ export function TestInterface() {
         setIsPaused(false);
         setTimeRemaining(pausedTimeRemaining);
         setPausedTimeRemaining(null);
-        console.log('Test auto-resumed. Continuing from time:', pausedTimeRemaining);
+        if (import.meta.env.DEV) {
+          console.log('Test auto-resumed. Continuing from time:', pausedTimeRemaining);
+        }
       }
     };
 

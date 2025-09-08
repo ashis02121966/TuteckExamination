@@ -13,7 +13,9 @@ export class ActivityLogger {
   static async log(entry: ActivityLogEntry): Promise<void> {
     try {
       if (!supabase) {
-        console.log('ActivityLogger: Supabase not configured, skipping log');
+        if (import.meta.env.DEV) {
+          console.log('ActivityLogger: Supabase not configured, skipping log');
+        }
         return;
       }
 
@@ -44,12 +46,18 @@ export class ActivityLogger {
         .insert(logData);
 
       if (error) {
-        console.error('ActivityLogger: Failed to log activity:', error);
+        if (import.meta.env.DEV) {
+          console.error('ActivityLogger: Failed to log activity:', error);
+        }
       } else {
-        console.log('ActivityLogger: Activity logged successfully:', entry.activity_type);
+        if (import.meta.env.DEV) {
+          console.log('ActivityLogger: Activity logged successfully:', entry.activity_type);
+        }
       }
     } catch (error) {
-      console.error('ActivityLogger: Error logging activity:', error);
+      if (import.meta.env.DEV) {
+        console.error('ActivityLogger: Error logging activity:', error);
+      }
     }
   }
 

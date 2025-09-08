@@ -40,7 +40,9 @@ async function enableRLS() {
 export class DataInitializer {
   static async initializeDatabase() {
     try {
-      console.log('Starting database initialization...');
+      if (import.meta.env.DEV) {
+        console.log('Starting database initialization...');
+      }
       
       // Check if we're in demo mode
       if (isDemoMode) {
@@ -57,19 +59,27 @@ export class DataInitializer {
       // This check is now redundant since we check isDemoMode above
       
       // Test admin client first
-      console.log('Testing admin client...');
+      if (import.meta.env.DEV) {
+        console.log('Testing admin client...');
+      }
       try {
         const { data: testUsers, error: testError } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1 });
         if (testError) {
-          console.error('Admin client test failed:', testError);
+          if (import.meta.env.DEV) {
+            console.error('Admin client test failed:', testError);
+          }
           return {
             success: false,
             message: `Admin client authentication failed: ${testError.message}. Please check your VITE_SUPABASE_SERVICE_ROLE_KEY in .env file.`
           };
         }
-        console.log('Admin client test successful');
+        if (import.meta.env.DEV) {
+          console.log('Admin client test successful');
+        }
       } catch (error) {
-        console.error('Admin client test error:', error);
+        if (import.meta.env.DEV) {
+          console.error('Admin client test error:', error);
+        }
         await enableRLS();
         return {
           success: false,
@@ -77,10 +87,14 @@ export class DataInitializer {
         };
       }
       
-      console.log('Checking database connection...');
+      if (import.meta.env.DEV) {
+        console.log('Checking database connection...');
+      }
       
       // Clean up existing data first
-      console.log('Cleaning up existing data...');
+      if (import.meta.env.DEV) {
+        console.log('Cleaning up existing data...');
+      }
       await this.cleanupExistingData(supabase, supabaseAdmin);
       
       // Check if data already exists

@@ -42,7 +42,9 @@ export function Login() {
         setShowInitialization(false);
       }
     } catch (error) {
-      console.error('Error checking database status:', error);
+      if (import.meta.env.DEV) {
+        console.error('Error checking database status:', error);
+      }
       setShowInitialization(true);
     } finally {
       setIsCheckingDatabase(false);
@@ -68,7 +70,9 @@ export function Login() {
         setError(result.message);
       }
     } catch (error) {
-      console.error('Database initialization error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Database initialization error:', error);
+      }
       setError('Failed to initialize database. Please try again.');
     }
     
@@ -93,10 +97,14 @@ export function Login() {
         setError(result.message);
       } else {
         // Login successful, navigation will be handled by the auth context
-        console.log('Login successful');
+        if (import.meta.env.DEV) {
+          console.log('Login successful');
+        }
       }
     } catch (error) {
-      console.error('Login error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Login error:', error);
+      }
       setError('Login failed. Please try again.');
     }
     

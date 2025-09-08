@@ -1,9 +1,13 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { ErrorHandler } from './errorHandler';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+
+export { ErrorHandler };
+export { PerformanceMonitor, MemoryMonitor } from './performance';
 
 export function formatDate(date: Date | string): string {
   return new Date(date).toLocaleDateString('en-US', {
@@ -135,3 +139,49 @@ export function downloadFile(content: string, filename: string, mimeType: string
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+// Safe async wrapper that handles errors gracefully
+export async function safeAsync<T>(
+  operation: () => Promise<T>,
+  fallback: T,
+  context?: string
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    ErrorHandler.logError(error, context);
+    return fallback;
+  }
+}
+
+// Safe localStorage wrapper
+export const safeStorage = {
+  getItem(key: string): string | null {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      ErrorHandler.logError(error, 'localStorage.getItem');
+      return null;
+    }
+  },
+
+  setItem(key: string, value: string): boolean {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (error) {
+      ErrorHandler.logError(error, 'localStorage.setItem');
+      return false;
+    }
+  },
+
+  removeItem(key: string): boolean {
+    try {
+      localStorage.removeItem(key);
+      return true;
+    } catch (error) {
+      ErrorHandler.logError(error, 'localStorage.removeItem');
+      return false;
+    }
+  }
+};
