@@ -2410,3 +2410,6 @@ export const resultApi = new ResultApi();
 export const certificateApi = new CertificateApi();
 export const settingsApi = new SettingsApi();
 export const enumeratorApi = new EnumeratorApi();
+    }
+  }
+}
