@@ -2376,12 +2376,159 @@ export const sectionApi = {
   }
 };
 
+export const questionApi = {
+  async getQuestions(sectionId: string): Promise<ApiResponse<Question[]>> {
+    try {
+      if (isDemoMode) {
+        return {
+          success: true,
+          data: [],
+          message: 'Demo mode: No questions available'
+        };
+      }
+
+      const { data, error } = await supabase
+        .from('questions')
+        .select(`
+          *,
+          options:question_options(*)
+        `)
+        .eq('section_id', sectionId)
+        .order('question_order');
+
+      if (error) throw error;
+
+      const questions = data.map(q => ({
+        id: q.id,
+        sectionId: q.section_id,
+        text: q.text,
+        type: q.question_type as 'single_choice' | 'multiple_choice',
+        complexity: q.complexity as 'easy' | 'medium' | 'hard',
+        points: q.points,
+        explanation: q.explanation,
+        order: q.question_order,
+        options: q.options.map((opt: any) => ({
+          id: opt.id,
+          text: opt.text,
+          isCorrect: opt.is_correct
+        })),
+        correctAnswers: q.options.filter((opt: any) => opt.is_correct).map((opt: any) => opt.id),
+        createdAt: new Date(q.created_at),
+        updatedAt: new Date(q.updated_at)
+      }));
+
+      return {
+        success: true,
+        data: questions,
+        message: 'Questions fetched successfully'
+      };
+    } catch (error) {
+      console.error('Failed to fetch questions:', error);
+      return {
+        success: false,
+        data: [],
+        message: 'Failed to fetch questions'
+      };
+    }
+  },
+
+  async createQuestion(questionData: {
+    sectionId: string;
+    text: string;
+    type: 'single_choice' | 'multiple_choice';
+    complexity: 'easy' | 'medium' | 'hard';
+    points: number;
+    explanation?: string;
+    options: { text: string; isCorrect: boolean }[];
+  }): Promise<ApiResponse<Question>> {
+    try {
+      if (isDemoMode) {
+        return {
+          success: false,
+          message: 'Demo mode: Cannot create questions'
+        };
+      }
+
+      // First, create the question
+      const { data: questionResult, error: questionError } = await supabase
+        .from('questions')
+        .insert({
+          section_id: questionData.sectionId,
+          text: questionData.text,
+          question_type: questionData.type,
+          complexity: questionData.complexity,
+          points: questionData.points,
+          explanation: questionData.explanation || null,
+          question_order: 1 // Will be updated based on existing questions
+        })
+        .select()
+        .single();
+
+      if (questionError) {
+        console.error('Failed to create question:', questionError);
+        throw new Error(`Failed to create question: ${questionError.message}`);
+      }
+
+      // Then create the options
+      const optionsToInsert = questionData.options.map((option, index) => ({
+        question_id: questionResult.id,
+        text: option.text,
+        is_correct: option.isCorrect,
+        option_order: index + 1
+      }));
+
+      const { data: optionsData, error: optionsError } = await supabase
+        .from('question_options')
+        .insert(optionsToInsert)
+        .select();
+
+      if (optionsError) {
+        console.error('Failed to create question options:', optionsError);
+        // Clean up the question if options failed
+        await supabase.from('questions').delete().eq('id', questionResult.id);
+        throw new Error(`Failed to create question options: ${optionsError.message}`);
+      }
+
+      // Return the complete question with options
+      const completeQuestion: Question = {
+        id: questionResult.id,
+        sectionId: questionResult.section_id,
+        text: questionResult.text,
+        type: questionResult.question_type as 'single_choice' | 'multiple_choice',
+        complexity: questionResult.complexity as 'easy' | 'medium' | 'hard',
+        points: questionResult.points,
+        explanation: questionResult.explanation,
+        order: questionResult.question_order,
+        options: optionsData.map(opt => ({
+          id: opt.id,
+          text: opt.text,
+          isCorrect: opt.is_correct
+        })),
+        correctAnswers: optionsData.filter(opt => opt.is_correct).map(opt => opt.id),
+        createdAt: new Date(questionResult.created_at),
+        updatedAt: new Date(questionResult.updated_at)
+      };
+
+      return {
+        success: true,
+        data: completeQuestion,
+        message: 'Question created successfully'
+      };
+    } catch (error) {
+      console.error('Failed to create question:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Failed to create question'
+      };
+    }
+  },
+};
+
 // Export API instances
 export const authApi = new AuthApi();
 export const userApi = new UserApi();
 export const roleApi = new RoleApi();
 export const surveyApi = new SurveyApi();
-export const questionApi = new QuestionApi();
 export const testApi = new TestApi();
 export const dashboardApi = new DashboardApi();
 export const enumeratorDashboardApi = new EnumeratorDashboardApi();
