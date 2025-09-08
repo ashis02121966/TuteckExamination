@@ -2497,6 +2497,25 @@ export const questionApi = {
         type: questionResult.question_type as 'single_choice' | 'multiple_choice',
         complexity: questionResult.complexity as 'easy' | 'medium' | 'hard',
         points: questionResult.points,
+  deleteQuestion: async (questionId: string): Promise<ApiResponse<void>> => {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Demo mode - cannot delete questions' };
+      }
+
+      const { error } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', questionId);
+
+      if (error) throw error;
+
+      return { success: true, message: 'Question deleted successfully' };
+    } catch (error) {
+      console.error('Failed to delete question:', error);
+      return { success: false, message: `Failed to delete question: ${error instanceof Error ? error.message : 'Unknown error'}` };
+    }
+  },
         explanation: questionResult.explanation,
         order: questionResult.question_order,
         options: optionsData.map(opt => ({
