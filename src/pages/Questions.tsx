@@ -37,6 +37,100 @@ export function Questions() {
     }
   };
 
+  const handleBulkUpload = async () => {
+    if (!selectedFile) {
+      alert('Please select a CSV file first');
+      return;
+    }
+
+    if (!selectedSectionId) {
+      alert('Please select a section first');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadResults(null);
+
+    try {
+      const fileContent = await selectedFile.text();
+      const { questions: parsedQuestions, errors: parseErrors } = parseCSVQuestions(fileContent);
+
+      if (parseErrors.length > 0) {
+        setUploadResults({
+          success: false,
+          questionsAdded: 0,
+          questionsSkipped: parsedQuestions.length,
+          errors: parseErrors,
+          fileName: selectedFile.name
+        });
+        return;
+      }
+
+      if (parsedQuestions.length === 0) {
+        setUploadResults({
+          success: false,
+          questionsAdded: 0,
+          questionsSkipped: 0,
+          errors: ['No valid questions found in the CSV file'],
+          fileName: selectedFile.name
+        });
+        return;
+      }
+
+      // Upload questions one by one
+      let successCount = 0;
+      const uploadErrors: string[] = [];
+
+      for (let i = 0; i < parsedQuestions.length; i++) {
+        const question = parsedQuestions[i];
+        try {
+          const response = await questionApi.createQuestion({
+            sectionId: selectedSectionId,
+            text: question.text,
+            type: question.type,
+            complexity: question.complexity,
+            points: question.points,
+            explanation: question.explanation,
+            options: question.options
+          });
+
+          if (response.success) {
+            successCount++;
+          } else {
+            uploadErrors.push(`Question ${i + 1}: ${response.message}`);
+          }
+        } catch (error) {
+          uploadErrors.push(`Question ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      setUploadResults({
+        success: successCount > 0,
+        questionsAdded: successCount,
+        questionsSkipped: parsedQuestions.length - successCount,
+        errors: uploadErrors,
+        fileName: selectedFile.name
+      });
+
+      // Refresh questions list if any were added successfully
+      if (successCount > 0) {
+        fetchQuestions();
+      }
+
+    } catch (error) {
+      console.error('Bulk upload error:', error);
+      setUploadResults({
+        success: false,
+        questionsAdded: 0,
+        questionsSkipped: 0,
+        errors: [error instanceof Error ? error.message : 'Failed to process file'],
+        fileName: selectedFile.name
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [selectedSectionForEdit, setSelectedSectionForEdit] = useState<Section | null>(null);
   const [sectionFormData, setSectionFormData] = useState({
