@@ -2396,20 +2396,28 @@ export const questionApi = {
         .eq('section_id', sectionId)
         .order('question_order');
 
-        .select(`
-          *,
-          user:users(id, name, email, jurisdiction, role:roles(name)),
-          survey:surveys(title)
-        `)
+      if (error) throw error;
 
-      const questions = data.map(q => ({
+      // Ensure data structure is consistent
+      const questions = (rawData || []).map(q => ({
         id: q.id,
         sectionId: q.section_id,
-      // Ensure data structure is consistent
-      const transformedData = (rawData || []).map(cert => ({
+        text: q.text,
+        type: q.question_type as 'single_choice' | 'multiple_choice',
         complexity: q.complexity as 'easy' | 'medium' | 'hard',
-        user: cert.user || null,
-        survey: cert.survey || null
+        points: q.points,
+        explanation: q.explanation,
+        order: q.question_order,
+        options: (q.options || []).map((option: any) => ({
+          id: option.id,
+          text: option.text,
+          isCorrect: option.is_correct
+        })),
+        correctAnswers: (q.options || [])
+          .filter((option: any) => option.is_correct)
+          .map((option: any) => option.id),
+        createdAt: new Date(q.created_at),
+        updatedAt: new Date(q.updated_at)
       }));
 
       return {
@@ -2492,25 +2500,6 @@ export const questionApi = {
         type: questionResult.question_type as 'single_choice' | 'multiple_choice',
         complexity: questionResult.complexity as 'easy' | 'medium' | 'hard',
         points: questionResult.points,
-  deleteQuestion: async (questionId: string): Promise<ApiResponse<void>> => {
-    try {
-      if (isDemoMode) {
-        return { success: false, message: 'Demo mode - cannot delete questions' };
-      }
-
-      const { error } = await supabase
-        .from('questions')
-        .delete()
-        .eq('id', questionId);
-
-      if (error) throw error;
-
-      return { success: true, message: 'Question deleted successfully' };
-    } catch (error) {
-      console.error('Failed to delete question:', error);
-      return { success: false, message: `Failed to delete question: ${error instanceof Error ? error.message : 'Unknown error'}` };
-    }
-  },
         explanation: questionResult.explanation,
         order: questionResult.question_order,
         options: optionsData.map(opt => ({
@@ -2536,6 +2525,26 @@ export const questionApi = {
       };
     }
   },
+
+  deleteQuestion: async (questionId: string): Promise<ApiResponse<void>> => {
+    try {
+      if (isDemoMode) {
+        return { success: false, message: 'Demo mode - cannot delete questions' };
+      }
+
+      const { error } = await supabase
+        .from('questions')
+        .delete()
+        .eq('id', questionId);
+
+      if (error) throw error;
+
+      return { success: true, message: 'Question deleted successfully' };
+    } catch (error) {
+      console.error('Failed to delete question:', error);
+      return { success: false, message: `Failed to delete question: ${error instanceof Error ? error.message : 'Unknown error'}` };
+    }
+  }
 };
 
 // Export API instances
