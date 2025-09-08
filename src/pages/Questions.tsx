@@ -29,6 +29,14 @@ export function Questions() {
     errors: string[];
     total: number;
   } | null>(null);
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setUploadResults(null);
+    }
+  };
+
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [selectedSectionForEdit, setSelectedSectionForEdit] = useState<Section | null>(null);
   const [sectionFormData, setSectionFormData] = useState({
