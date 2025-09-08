@@ -1443,12 +1443,10 @@ class DashboardApi extends BaseApi {
         : 0;
 
       // Get recent activity
-      .select(`
-        *,
-        user:users(
-          id,
-      `)
       const { data: activityData, error: activityError } = await supabaseAdmin
+        .from('activity_logs')
+        .select(`
+          id,
           activity_type,
           description,
           user_id,
@@ -1832,27 +1830,9 @@ class ResultApi extends BaseApi {
         return { success: false, message: 'Database not configured', data: [] };
       }
 
-      let query = supabase
+      const { data: results, error } = await supabase
         .from('test_results')
         .select(`
-          *,
-          user:users(
-            id,
-            name,
-            email,
-            jurisdiction,
-            role:roles(
-              name,
-              level
-            )
-          ),
-          survey:surveys(
-            title,
-            max_attempts,
-            passing_score
-          )
-        `)
-        .order('completed_at', { ascending: false });
           *,
           user:users(
             id,
@@ -2412,9 +2392,3 @@ export const resultApi = new ResultApi();
 export const certificateApi = new CertificateApi();
 export const settingsApi = new SettingsApi();
 export const enumeratorApi = new EnumeratorApi();
-    }
-  }
-}
-    }
-  }
-}
