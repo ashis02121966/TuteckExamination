@@ -2387,7 +2387,7 @@ export const questionApi = {
         };
       }
 
-      const { data, error } = await supabase
+      const { data: rawData, error } = await supabase
         .from('questions')
         .select(`
           *,
@@ -2396,25 +2396,20 @@ export const questionApi = {
         .eq('section_id', sectionId)
         .order('question_order');
 
-      if (error) throw error;
+        .select(`
+          *,
+          user:users(id, name, email, jurisdiction, role:roles(name)),
+          survey:surveys(title)
+        `)
 
       const questions = data.map(q => ({
         id: q.id,
         sectionId: q.section_id,
-        text: q.text,
-        type: q.question_type as 'single_choice' | 'multiple_choice',
+      // Ensure data structure is consistent
+      const transformedData = (rawData || []).map(cert => ({
         complexity: q.complexity as 'easy' | 'medium' | 'hard',
-        points: q.points,
-        explanation: q.explanation,
-        order: q.question_order,
-        options: q.options.map((opt: any) => ({
-          id: opt.id,
-          text: opt.text,
-          isCorrect: opt.is_correct
-        })),
-        correctAnswers: q.options.filter((opt: any) => opt.is_correct).map((opt: any) => opt.id),
-        createdAt: new Date(q.created_at),
-        updatedAt: new Date(q.updated_at)
+        user: cert.user || null,
+        survey: cert.survey || null
       }));
 
       return {

@@ -95,8 +95,8 @@ export function Certificates() {
   };
 
   const filteredCertificates = certificates.filter(certificate => {
-    const matchesSearch = certificate.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         certificate.survey.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (certificate.user?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (certificate.survey?.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          certificate.certificateNumber.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || certificate.status === statusFilter;
@@ -260,14 +260,14 @@ export function Certificates() {
                             <Award className="w-5 h-5 text-yellow-600" />
                           </div>
                           <div>
-                            <p className="font-medium text-gray-900">{certificate.certificateNumber}</p>
-                            <p className="text-sm text-gray-500">ID: {certificate.id}</p>
+                            <p className="font-medium text-gray-900">{certificate.user?.name || 'Unknown User'}</p>
+                            <p className="text-sm text-gray-500">{certificate.user?.email || 'No email'}</p>
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium text-gray-900">{certificate.user.name}</p>
+                            <p className="font-medium text-gray-900">{certificate.survey?.title || 'Unknown Survey'}</p>
+                            <p className="text-sm text-gray-500">{certificate.user?.role?.name || 'Unknown Role'}</p>
                           <p className="text-sm text-gray-500">{certificate.user.email}</p>
                         </div>
                       </td>
@@ -352,9 +352,9 @@ export function Certificates() {
                   
                   <div className="py-6">
                     <p className="text-lg text-gray-700 mb-2">This is to certify that</p>
-                    <h3 className="text-2xl font-bold text-blue-600 mb-2">{selectedCertificate.user.name}</h3>
+                    <h3 className="text-2xl font-bold text-blue-600 mb-2">{selectedCertificate.user?.name || 'Unknown User'}</h3>
                     <p className="text-lg text-gray-700 mb-2">has successfully completed</p>
-                    <h4 className="text-xl font-semibold text-gray-900 mb-4">{selectedCertificate.survey.title}</h4>
+                    <h4 className="text-xl font-semibold text-gray-900 mb-4">{selectedCertificate.survey?.title || 'Unknown Survey'}</h4>
                   </div>
                   
                   <div className="flex justify-between items-center pt-6 border-t border-blue-200">
@@ -391,10 +391,10 @@ export function Certificates() {
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-3">Recipient Information</h4>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Name:</span> {selectedCertificate.user.name}</p>
-                    <p><span className="font-medium">Email:</span> {selectedCertificate.user.email}</p>
-                    <p><span className="font-medium">Role:</span> {selectedCertificate.user.role.name}</p>
-                    <p><span className="font-medium">Jurisdiction:</span> {selectedCertificate.user.jurisdiction || 'N/A'}</p>
+                    <p><span className="font-medium">Name:</span> {selectedCertificate.user?.name || 'Unknown User'}</p>
+                    <p><span className="font-medium">Email:</span> {selectedCertificate.user?.email || 'No email'}</p>
+                    <p><span className="font-medium">Role:</span> {selectedCertificate.user?.role?.name || 'Unknown Role'}</p>
+                    <p><span className="font-medium">Jurisdiction:</span> {selectedCertificate.user?.jurisdiction || 'N/A'}</p>
                   </div>
                 </div>
               </div>
