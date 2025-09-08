@@ -1224,19 +1224,61 @@ export function Questions() {
               <input
                 type="file"
                 accept=".csv"
+                onChange={handleFileUpload}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
+              {uploadFile && (
+                <p className="text-sm text-green-600 mt-2">
+                  Selected: {uploadFile.name} ({(uploadFile.size / 1024).toFixed(1)} KB)
+                </p>
+              )}
             </div>
+            
+            {uploadResults && (
+              <div className={`p-4 rounded-lg border ${
+                uploadResults.success > 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+              }`}>
+                <h4 className={`font-medium mb-2 ${
+                  uploadResults.success > 0 ? 'text-green-900' : 'text-red-900'
+                }`}>
+                  Upload Results
+                </h4>
+                <div className="text-sm space-y-1">
+                  <p className="text-green-600">✓ {uploadResults.success} questions uploaded successfully</p>
+                  {uploadResults.errors.length > 0 && (
+                    <div>
+                      <p className="text-red-600 font-medium">Errors:</p>
+                      <ul className="text-red-600 text-xs space-y-1 ml-4">
+                        {uploadResults.errors.slice(0, 10).map((error, index) => (
+                          <li key={index}>• {error}</li>
+                        ))}
+                        {uploadResults.errors.length > 10 && (
+                          <li>• ... and {uploadResults.errors.length - 10} more errors</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
             <div className="flex justify-end space-x-3 pt-4 border-t">
               <Button
                 variant="secondary"
-                onClick={() => setIsUploadModalOpen(false)}
+                onClick={() => {
+                  setIsUploadModalOpen(false);
+                  setUploadFile(null);
+                  setUploadResults(null);
+                }}
               >
                 Cancel
               </Button>
-              <Button>
-                Upload Questions
+              <Button
+                onClick={handleBulkUpload}
+                disabled={!uploadFile || isUploading}
+                loading={isUploading}
+              >
+                {isUploading ? 'Uploading...' : 'Upload Questions'}
               </Button>
             </div>
           </div>
