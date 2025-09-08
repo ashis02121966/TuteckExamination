@@ -387,6 +387,88 @@ export function Questions() {
     setIsEditSectionModalOpen(true);
   };
 
+  const handleDownloadTemplate = () => {
+    if (!selectedSection || !selectedSectionData) {
+      alert('Please select a section first');
+      return;
+    }
+
+    // Create CSV content with existing questions
+    const csvHeaders = ['Question', 'Type', 'Complexity', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'CorrectAnswer', 'Points', 'Explanation'];
+    
+    let csvContent = csvHeaders.join(',') + '\n';
+    
+    // Add existing questions to the template
+    questions.forEach((question) => {
+      const options = question.options || [];
+      const correctAnswers = options
+        .map((opt, index) => opt.isCorrect ? String.fromCharCode(65 + index) : '')
+        .filter(answer => answer)
+        .join('');
+      
+      const row = [
+        `"${question.text.replace(/"/g, '""')}"`, // Escape quotes in question text
+        question.type,
+        question.complexity,
+        `"${(options[0]?.text || '').replace(/"/g, '""')}"`,
+        `"${(options[1]?.text || '').replace(/"/g, '""')}"`,
+        `"${(options[2]?.text || '').replace(/"/g, '""')}"`,
+        `"${(options[3]?.text || '').replace(/"/g, '""')}"`,
+        correctAnswers,
+        question.points,
+        `"${(question.explanation || '').replace(/"/g, '""')}"`
+      ];
+      
+      csvContent += row.join(',') + '\n';
+    });
+    
+    // If no existing questions, add sample rows
+    if (questions.length === 0) {
+      const sampleRows = [
+        [
+          '"What is the primary function of an operating system?"',
+          'single_choice',
+          'easy',
+          '"To manage hardware and software resources"',
+          '"To create documents"',
+          '"To browse the internet"',
+          '"To play games"',
+          'A',
+          '1',
+          '"An operating system manages all hardware and software resources of a computer."'
+        ],
+        [
+          '"Which of the following are input devices? (Select all that apply)"',
+          'multiple_choice',
+          'medium',
+          '"Keyboard"',
+          '"Mouse"',
+          '"Monitor"',
+          '"Microphone"',
+          'ABD',
+          '2',
+          '"Input devices allow users to provide data to the computer. Monitor is an output device."'
+        ]
+      ];
+      
+      sampleRows.forEach(row => {
+        csvContent += row.join(',') + '\n';
+      });
+    }
+    
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `questions_template_${selectedSectionData.title.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const filteredQuestions = questions.filter(question =>
     question.text.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -1106,12 +1188,28 @@ export function Questions() {
           size="lg"
         >
           <div className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-medium text-gray-900">Upload Questions</h4>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleDownloadTemplate}
+                className="flex items-center space-x-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Template</span>
+              </Button>
+            </div>
+            
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="font-medium text-blue-900 mb-2">CSV Format Requirements</h4>
               <p className="text-sm text-blue-800 mb-2">Your CSV file should have the following columns:</p>
               <div className="text-xs text-blue-700 font-mono bg-blue-100 p-2 rounded">
                 Question,Type,Complexity,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Points,Explanation
               </div>
+              <p className="text-xs text-blue-700 mt-2">
+                Download the template above to get a CSV file with existing questions from this section, or use it as a format reference for new questions.
+              </p>
             </div>
             
             <div>
