@@ -22,6 +22,13 @@ export function Questions() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
   const [isEditSectionModalOpen, setIsEditSectionModalOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadResults, setUploadResults] = useState<{
+    success: number;
+    errors: string[];
+    total: number;
+  } | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
   const [selectedSectionForEdit, setSelectedSectionForEdit] = useState<Section | null>(null);
   const [sectionFormData, setSectionFormData] = useState({
