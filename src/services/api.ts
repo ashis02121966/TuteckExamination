@@ -1443,10 +1443,12 @@ class DashboardApi extends BaseApi {
         : 0;
 
       // Get recent activity
-      const { data: activityData, error: activityError } = await supabaseAdmin
-        .from('activity_logs')
-        .select(`
+      .select(`
+        *,
+        user:users(
           id,
+      `)
+      const { data: activityData, error: activityError } = await supabaseAdmin
           activity_type,
           description,
           user_id,
