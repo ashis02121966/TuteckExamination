@@ -266,15 +266,15 @@ export function Certificates() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <div>
-                          <p className="font-medium text-gray-900">{certificate.user?.name || 'Unknown User'}</p>
-                          <p className="text-sm text-gray-500">{certificate.user?.email || 'No email'}</p>
+                            <p className="font-medium text-gray-900">{certificate.survey?.title || 'Unknown Survey'}</p>
+                            <p className="text-sm text-gray-500">{certificate.user?.role?.name || 'Unknown Role'}</p>
+                          <p className="text-sm text-gray-500">{certificate.user.email}</p>
                         </div>
                       </td>
                       <td className="py-3 px-4">
                         <div>
-                          <p className="font-medium text-gray-900">{certificate.survey?.title || 'Unknown Survey'}</p>
-                          <p className="text-sm text-gray-500">{certificate.user?.role?.name || 'Unknown Role'}</p>
+                          <p className="font-medium text-gray-900">{certificate.survey.title}</p>
+                          <p className="text-sm text-gray-500">{certificate.user.role.name}</p>
                         </div>
                       </td>
                       <td className="py-3 px-4">
