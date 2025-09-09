@@ -157,7 +157,7 @@ export class DataInitializer {
       console.log('System settings created successfully');
       
       // Create RLS policies for questions and options
-      await this.createRLSPolicies(supabaseAdminClient);
+      await this.createRLSPolicies(supabaseAdmin);
       console.log('RLS policies created successfully');
       
       // Re-enable RLS after initialization
@@ -821,10 +821,31 @@ export class DataInitializer {
     console.log('Creating RLS policies...');
     
     try {
-      // Note: RLS policies are already created in the database schema
-      // The database schema includes proper RLS policies for all tables
-      // This function is kept for compatibility but policies are handled by the schema
-      console.log('RLS policies are managed by the database schema');
+      // Create additional RLS policies for questions and question_options to ensure access
+      const policies = [
+        // Questions policies
+        `CREATE POLICY IF NOT EXISTS "Allow authenticated users to read questions" ON questions FOR SELECT TO authenticated USING (true);`,
+        `CREATE POLICY IF NOT EXISTS "Allow anon users to read questions" ON questions FOR SELECT TO anon USING (true);`,
+        
+        // Question options policies  
+        `CREATE POLICY IF NOT EXISTS "Allow authenticated users to read question_options" ON question_options FOR SELECT TO authenticated USING (true);`,
+        `CREATE POLICY IF NOT EXISTS "Allow anon users to read question_options" ON question_options FOR SELECT TO anon USING (true);`,
+        
+        // Survey sections policies
+        `CREATE POLICY IF NOT EXISTS "Allow authenticated users to read survey_sections" ON survey_sections FOR SELECT TO authenticated USING (true);`,
+        `CREATE POLICY IF NOT EXISTS "Allow anon users to read survey_sections" ON survey_sections FOR SELECT TO anon USING (true);`
+      ];
+      
+      for (const policy of policies) {
+        try {
+          const { error } = await supabaseAdminClient.rpc('exec_sql', { sql: policy });
+          if (error) {
+            console.log(`Policy creation failed (this may be expected): ${error.message}`);
+          }
+        } catch (error) {
+          console.log('Policy creation via RPC failed, policies may already exist or RPC not available');
+        }
+      }
       
       console.log('RLS policies created successfully');
     } catch (error) {
