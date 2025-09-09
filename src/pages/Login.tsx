@@ -198,14 +198,16 @@ export function Login() {
             </Button>
           </form>
 
-          {/* Demo Credentials Info - Always show for easy access */}
-          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <h3 className="text-sm font-semibold text-gray-800 mb-2">Demo Credentials</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>Admin:</strong> admin@esigma.com / password123</p>
-              <p><strong>Enumerator:</strong> enumerator@esigma.com / password123</p>
+          {/* Demo Credentials Info - Only show when database is initialized */}
+          {showInitialization && (
+            <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Demo Credentials</h3>
+              <div className="text-xs text-gray-600 space-y-1">
+                <p><strong>Admin:</strong> admin@esigma.com / password123</p>
+                <p><strong>Enumerator:</strong> enumerator@esigma.com / password123</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
