@@ -93,9 +93,6 @@ export const authApi = {
 
   async logout(): Promise<ApiResponse<void>> {
     try {
-      if (supabase) {
-        await supabase.auth.signOut();
-      }
       return createResponse(true, undefined, 'Logged out successfully');
     } catch (error) {
       console.error('Logout error:', error);
