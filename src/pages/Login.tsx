@@ -128,34 +128,35 @@ export function Login() {
             <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
           </div>
 
-          {/* Database Initialization Section - Only show when needed */}
-          {showInitialization && (
+          {/* Database Initialization Section */}
+          {!isDemoMode && (
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h3 className="text-sm font-semibold text-blue-800 mb-2">First Time Setup</h3>
+              <h3 className="text-sm font-semibold text-blue-800 mb-2">Database Setup</h3>
               <p className="text-xs text-blue-700 mb-3">
-                {isDemoMode 
-                  ? 'Please configure Supabase to use the system.'
-                  : 'Database appears to be empty. Initialize with demo data to get started.'
+                {showInitialization
+                  ? 'Initialize database with demo data to get started.'
+                  : 'Database is ready. Click below to reinitialize with demo data if needed.'
                 }
               </p>
-              {!isDemoMode && (
-                <Button
-                  onClick={handleInitializeDatabase}
-                  disabled={isInitializing}
-                  variant="outline"
-                  size="sm"
-                  className="w-full text-blue-700 border-blue-300 hover:bg-blue-100"
-                >
-                  {isInitializing ? 'Initializing Database...' : 'Initialize Database'}
-                </Button>
-              )}
-              {isDemoMode && (
-                <div className="text-xs text-blue-700">
-                  <p>1. Create a Supabase project at supabase.com</p>
-                  <p>2. Update .env with your credentials</p>
-                  <p>3. Restart the development server</p>
-                </div>
-              )}
+              <Button
+                onClick={handleInitializeDatabase}
+                disabled={isInitializing}
+                variant="outline"
+                size="sm"
+                className="w-full text-blue-700 border-blue-300 hover:bg-blue-100"
+              >
+                {isInitializing ? 'Initializing Database...' : 'Initialize Database'}
+              </Button>
+            </div>
+          )}
+          {isDemoMode && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <h3 className="text-sm font-semibold text-yellow-800 mb-2">Demo Mode</h3>
+              <div className="text-xs text-yellow-700 space-y-1">
+                <p>1. Create a Supabase project at supabase.com</p>
+                <p>2. Update .env with your credentials</p>
+                <p>3. Restart the development server</p>
+              </div>
             </div>
           )}
 
